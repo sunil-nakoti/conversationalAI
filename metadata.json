@@ -1,0 +1,7 @@
+{
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "name": "Arc AI",
+  "description": "Intelligent Automation Platform"
+}
