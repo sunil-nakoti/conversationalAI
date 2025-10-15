@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { IconName, BrandingProfile } from '../types';
 import { Icon } from './Icon';
@@ -16,7 +17,6 @@ const mockDebtorData = {
     currentbalance: 850.75,
     originalcreditor: 'Global Bank Inc.',
     settlementOfferPercentage: 40,
-    // FIX: Added missing paymentPlanOptions property required by AiChatbotWidget.
     paymentPlanOptions: "3 monthly payments of $283.58",
 };
 

@@ -8,6 +8,11 @@ const NotificationIntegrationSchema = new mongoose.Schema({
 }, { _id: false });
 
 const BrandingProfileSchema = new mongoose.Schema({
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
     id: { type: String, unique: true, required: true },
     companyName: String,
     logoUrl: String,

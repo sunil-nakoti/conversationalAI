@@ -38,24 +38,25 @@ const AgentCommand: React.FC<AgentCommandProps> = ({ onViewChange }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const [agentsData, missionsData] = await Promise.all([
+                apiService.getAgents(),
+                apiService.getMissions(),
+            ]);
+            setAgents(agentsData);
+            setMissions(missionsData);
+        } catch (err: any) {
+            setError(err.message || "Failed to load agent data.");
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const loadData = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-                const [agentsData, missionsData] = await Promise.all([
-                    apiService.getAgents(),
-                    apiService.getMissions(),
-                ]);
-                setAgents(agentsData);
-                setMissions(missionsData);
-            } catch (err: any) {
-                setError(err.message || "Failed to load agent data.");
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
         loadData();
     }, []);
 
@@ -72,20 +73,29 @@ const AgentCommand: React.FC<AgentCommandProps> = ({ onViewChange }) => {
         setIsMissionModalOpen(true);
     };
 
-    const handleDeleteMission = (missionId: string) => {
-        // API call to delete
-        setMissions(prev => prev.filter(m => m.id !== missionId));
+    const handleDeleteMission = async (missionId: string) => {
+        if (window.confirm('Are you sure you want to delete this mission?')) {
+            try {
+                await apiService.deleteMission(missionId);
+                setMissions(prev => prev.filter(m => m.id !== missionId));
+            } catch (err) {
+                alert('Failed to delete mission.');
+            }
+        }
     };
 
-    const handleSaveMission = (missionData: Omit<Mission, 'id' | 'progress'> & { id?: string; progress?: number }) => {
-        // API call to save/update
-        if (missionData.id) {
-            setMissions(prev => prev.map(m => m.id === missionData.id ? { ...m, ...missionData } as Mission : m));
-        } else {
-            const newMission: Mission = { ...missionData, id: `mis_${Date.now()}`, progress: 0 };
-            setMissions(prev => [newMission, ...prev]);
+    const handleSaveMission = async (missionData: Omit<Mission, 'id' | 'progress'> & { id?: string; progress?: number }) => {
+        try {
+            const savedMission = await apiService.saveMission(missionData);
+            if (missionData.id) {
+                setMissions(prev => prev.map(m => m.id === savedMission.id ? savedMission : m));
+            } else {
+                setMissions(prev => [savedMission, ...prev]);
+            }
+            setIsMissionModalOpen(false);
+        } catch (err) {
+            alert('Failed to save mission.');
         }
-        setIsMissionModalOpen(false);
     };
     
     if (loading) return <AgentCommandSkeleton />;

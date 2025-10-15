@@ -1,12 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import { Icon } from '../Icon';
-
-const API_KEY = process.env.API_KEY;
-if (!API_KEY) {
-  console.error("API_KEY environment variable not set for chatbot.");
-}
-const ai = new GoogleGenAI({ apiKey: API_KEY! });
+import { apiService } from '../../services/apiService';
 
 interface DebtorData {
     fullname: string;
@@ -25,61 +19,6 @@ type Message = {
     text: string;
     suggestions?: string[];
 };
-
-/**
- * Simulates a backend call to the Gemini API to get a chatbot response.
- * @param conversationHistory The current list of messages.
- * @param debtorData Contextual data about the debtor.
- * @returns The AI's text response.
- */
-const getChatbotResponse = async (conversationHistory: Message[], debtorData: DebtorData): Promise<string> => {
-    const lastUserMessage = conversationHistory[conversationHistory.length - 1]?.text;
-    if (!lastUserMessage) return "I'm sorry, I didn't understand. Could you please rephrase?";
-
-    const settlementAmount = (debtorData.currentbalance * (debtorData.settlementOfferPercentage / 100)).toFixed(2);
-
-    const systemInstruction = `
-        You are a helpful, empathetic, and compliant AI assistant for the Arc AI payment portal.
-        Your goal is to answer the user's questions about their debt and guide them toward a resolution.
-        You are not a human. You must not provide financial or legal advice.
-        You must be concise and clear.
-
-        DEBTOR CONTEXT:
-        - Debtor Name: ${debtorData.fullname}
-        - Current Balance: $${debtorData.currentbalance.toFixed(2)}
-        - Original Creditor: ${debtorData.originalcreditor}
-        - Available Settlement: $${settlementAmount} (${debtorData.settlementOfferPercentage}% of the balance).
-        - Available Payment Plans: ${debtorData.paymentPlanOptions}.
-
-        KNOWLEDGE BASE (Answer based on these rules):
-        - Q: "What is this debt for?" or "I don't recognize this."
-          A: "This debt is from ${debtorData.originalcreditor}. The current balance is $${debtorData.currentbalance.toFixed(2)}."
-        - Q: "Can I get a discount?" or "Can you lower the amount?"
-          A: "Yes, based on your account, you are eligible for a one-time settlement of $${settlementAmount}. You can accept this offer on the main payment page."
-        - Q: "Can I set up a payment plan?"
-          A: "Yes, you can set up a payment plan. The current option available is ${debtorData.paymentPlanOptions}. You can set this up on the main payment page."
-        - Q: "Is this going to affect my credit?"
-          A: "Account status can be reported to credit bureaus. Resolving your account is the best way to positively impact your financial future. I cannot provide specific financial advice."
-        - Q: "I can't pay this month."
-          A: "I understand that things can be difficult. The payment options, including a settlement and a payment plan, are available on the main page for you to review when you are ready."
-        - For any other questions, be helpful using the provided context but do not go beyond it. If asked something you don't know, say "I do not have access to that information, but our support team can help."
-    `;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: lastUserMessage,
-            config: {
-                systemInstruction,
-            },
-        });
-        return response.text;
-    } catch (error) {
-        console.error("Gemini API call failed:", error);
-        return "I'm sorry, I'm having trouble connecting right now. Please try again in a moment.";
-    }
-};
-
 
 const AiChatbotWidget: React.FC<AiChatbotWidgetProps> = ({ debtorData }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -112,10 +51,17 @@ const AiChatbotWidget: React.FC<AiChatbotWidgetProps> = ({ debtorData }) => {
         setInputValue('');
         setIsLoading(true);
 
-        const aiResponseText = await getChatbotResponse(newMessages, debtorData);
-        const aiMessage: Message = { sender: 'ai', text: aiResponseText };
-        setMessages(prev => [...prev, aiMessage]);
-        setIsLoading(false);
+        try {
+            const response = await apiService.getChatbotResponse(newMessages, debtorData);
+            const aiMessage: Message = { sender: 'ai', text: response.text };
+            setMessages(prev => [...prev, aiMessage]);
+        } catch (error) {
+            console.error("Chatbot API call failed:", error);
+            const errorMessage: Message = { sender: 'ai', text: "I'm sorry, I'm having trouble connecting right now. Please try again in a moment." };
+            setMessages(prev => [...prev, errorMessage]);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     if (!isOpen) {

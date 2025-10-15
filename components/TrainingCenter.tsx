@@ -10,10 +10,14 @@ import Tooltip from './Tooltip';
 
 const initialTrainingExamples: TrainingExample[] = [
     { id: 't1', title: 'Successful PTP Negotiation', type: 'good', hasAudio: true, hasTranscript: true, uploadedAt: '2024-08-02T10:00:00Z' },
-    { id: 't2', 'title': 'Excellent De-escalation', type: 'good', hasAudio: true, hasTranscript: false, uploadedAt: '2024-08-01T15:30:00Z' },
-    { id: 't3', 'title': 'Clear Mini-Miranda Delivery', type: 'good', hasAudio: false, hasTranscript: true, uploadedAt: '2024-07-31T11:00:00Z' },
-    { id: 't4', 'title': 'Missed Compliance Keyword', type: 'bad', hasAudio: true, hasTranscript: true, uploadedAt: '2024-08-02T09:15:00Z' },
-    { id: 't5', 'title': 'Incorrect Tone for Situation', type: 'bad', hasAudio: true, hasTranscript: false, uploadedAt: '2024-07-30T14:00:00Z' },
+    { id: 't2', title: 'Excellent De-escalation with Hostile Debtor', type: 'good', hasAudio: true, hasTranscript: false, uploadedAt: '2024-08-01T15:30:00Z' },
+    { id: 't3', title: 'Clear Mini-Miranda Delivery', type: 'good', hasAudio: false, hasTranscript: true, uploadedAt: '2024-07-31T11:00:00Z' },
+    { id: 't6', title: 'Perfect Handling of "Cant Afford" Objection', type: 'good', hasAudio: true, hasTranscript: true, uploadedAt: '2024-07-29T12:00:00Z' },
+    { id: 't7', title: 'Effective Use of Empathy', type: 'good', hasAudio: true, hasTranscript: true, uploadedAt: '2024-07-28T16:45:00Z' },
+    { id: 't4', title: 'Missed Compliance Keyword ("Stop Calling")', type: 'bad', hasAudio: true, hasTranscript: true, uploadedAt: '2024-08-02T09:15:00Z' },
+    { id: 't5', title: 'Incorrect Tone for Hardship Situation', type: 'bad', hasAudio: true, hasTranscript: false, uploadedAt: '2024-07-30T14:00:00Z' },
+    { id: 't8', title: 'Agent Interrupted Debtor Multiple Times', type: 'bad', hasAudio: true, hasTranscript: true, uploadedAt: '2024-07-29T18:00:00Z' },
+    { id: 't9', title: 'Failed to Validate Debt on Request', type: 'bad', hasAudio: false, hasTranscript: true, uploadedAt: '2024-07-27T11:20:00Z' },
 ];
 
 const TrainingExampleCard: React.FC<{ example: TrainingExample }> = ({ example }) => (

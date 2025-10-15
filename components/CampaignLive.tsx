@@ -4,99 +4,47 @@ import { LoginEvent, LiveCall, LiveSms, IconName, SmartCoachDirective } from '..
 import InteractionLog from './campaign-live/InteractionLog';
 import { Icon } from './Icon';
 import SmartCoach from './campaign-live/SmartCoach';
+import { apiService } from '../services/apiService';
 
-const mockDebtors = ['John D.', 'Jane S.', 'Peter J.', 'Mary L.', 'David C.', 'Sarah P.'];
-const mockAgents = ['Zephyr', 'Kore', 'Puck', 'Charon'];
-const mockSmsMessages = [
-    "Hi, just a reminder about your account.",
-    "Can you call me back?",
-    "I can't pay this right now.",
-    "Okay, I will make a payment today.",
-    "Is this the final amount?",
-];
-
-// Centralized mock data simulation for all live components
-const useLiveMockData = () => {
-    const [calls, setCalls] = useState<LiveCall[]>([]);
-    const [sms, setSms] = useState<LiveSms[]>([]);
-    const [paymentsMade, setPaymentsMade] = useState(0);
-    const [logins, setLogins] = useState(0);
+// Custom hook to poll for live data from the backend
+const useLiveBackendData = () => {
+    const [liveData, setLiveData] = useState<{ calls: LiveCall[], sms: LiveSms[], paymentsMade: number, logins: number }>({
+        calls: [],
+        sms: [],
+        paymentsMade: 0,
+        logins: 0,
+    });
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const callInterval = setInterval(() => {
-            const newCall: LiveCall = {
-                id: `call_${Date.now()}`,
-                debtorName: mockDebtors[Math.floor(Math.random() * mockDebtors.length)],
-                agent: mockAgents[Math.floor(Math.random() * mockAgents.length)],
-                status: 'Ringing',
-                sentiment: 'Neutral',
-                duration: 0,
-                timestamp: Date.now(),
-            };
-
-            setCalls(prev => [newCall, ...prev.slice(0, 19)]); // Keep last 20 calls
-
-            setTimeout(() => {
-                setCalls(prev => prev.map(c => c.id === newCall.id ? { ...c, status: 'Connected', sentiment: ['Positive', 'Neutral', 'Negative'][Math.floor(Math.random() * 3)] as LiveCall['sentiment'] } : c));
-            }, 3000);
-
-            let duration = 0;
-            const durationInterval = setInterval(() => {
-                duration++;
-                 setCalls(prev => prev.map(c => c.id === newCall.id ? { ...c, duration } : c));
-            }, 1000);
-
-            setTimeout(() => {
-                clearInterval(durationInterval);
-                setCalls(prev => prev.map(c => c.id === newCall.id ? { ...c, status: ['Completed', 'Voicemail', 'Failed'][Math.floor(Math.random() * 3)] as LiveCall['status'] } : c));
-            }, 8000 + Math.random() * 10000);
-
-        }, 8000);
-
-        const smsInterval = setInterval(() => {
-            const direction = Math.random() > 0.5 ? 'inbound' : 'outbound';
-            const newSms: LiveSms = {
-                id: `sms_${Date.now()}`,
-                debtorName: mockDebtors[Math.floor(Math.random() * mockDebtors.length)],
-                direction,
-                message: mockSmsMessages[Math.floor(Math.random() * mockSmsMessages.length)],
-                timestamp: Date.now(),
-                status: direction === 'outbound' ? 'Delivered' : undefined,
-            };
-            setSms(prev => [newSms, ...prev]);
-        }, 12000);
-        
-        const paymentInterval = setInterval(() => {
-            if (Math.random() > 0.7) {
-                setPaymentsMade(prev => prev + 1);
+        const fetchData = async () => {
+            try {
+                const data = await apiService.getLiveUpdates();
+                setLiveData(data);
+                setError(null);
+            } catch (err: any) {
+                console.error("Failed to fetch live updates:", err);
+                setError("Live connection lost. Attempting to reconnect...");
             }
-        }, 15000);
-        
-        const loginInterval = setInterval(() => {
-            if (Math.random() > 0.5) {
-                setLogins(prev => prev + 1);
-            }
-        }, 10000);
-
-        return () => {
-            clearInterval(callInterval);
-            clearInterval(smsInterval);
-            clearInterval(paymentInterval);
-            clearInterval(loginInterval);
         };
+
+        fetchData(); // Initial fetch
+        const interval = setInterval(fetchData, 5000); // Poll every 5 seconds
+
+        return () => clearInterval(interval);
     }, []);
 
-    return { calls, sms, paymentsMade, logins };
+    return { ...liveData, error };
 };
 
 
 interface CampaignLiveProps {
-    loginEvents: LoginEvent[];
+    loginEvents: LoginEvent[]; // Assuming this still comes from props for now
 }
 
 const CampaignLive: React.FC<CampaignLiveProps> = ({ loginEvents }) => {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'log'>('dashboard');
-    const { calls, sms, paymentsMade, logins } = useLiveMockData();
+    const { calls, sms, paymentsMade, logins, error } = useLiveBackendData();
     const [coachedCallId, setCoachedCallId] = useState<string | null>(null);
 
     const coachedCall = calls.find(c => c.id === coachedCallId) || null;
@@ -117,6 +65,11 @@ const CampaignLive: React.FC<CampaignLiveProps> = ({ loginEvents }) => {
 
     return (
         <div className="h-full flex flex-col">
+            {error && (
+                <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-pulse">
+                    {error}
+                </div>
+            )}
             <div className="flex-shrink-0 border-b border-slate-200 dark:border-slate-700">
                 <nav className="flex space-x-2">
                     <TabButton tab="dashboard" label="Live Dashboard" icon="dashboard" />

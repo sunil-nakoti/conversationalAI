@@ -33,9 +33,11 @@ Before you begin, ensure you have the following installed:
     MONGO_URI=your_mongodb_connection_string
     JWT_SECRET=your_super_secret_jwt_key
     JWT_EXPIRE=30d
+    API_KEY=your_google_genai_api_key
     ```
     - `MONGO_URI`: Your MongoDB connection string.
     - `JWT_SECRET`: A long, random, and secret string used to sign the JWTs.
+    - `API_KEY`: Your API key for the Google Gemini AI.
 
 ## Running the Application
 

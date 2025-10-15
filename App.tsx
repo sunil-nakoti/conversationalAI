@@ -14,6 +14,7 @@ import PaymentPage from './components/PaymentPage';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import ProfilePage from './components/ProfilePage';
+import AiChatbotWidget from './components/settings/AiChatbotWidget';
 import { 
     View, Theme, BrandingProfile, User, LoginEvent, BillingEventType
 } from './types';
@@ -36,6 +37,15 @@ const App: React.FC = () => {
 
     // Define admin-only views
     const adminViews: View[] = ['compliance', 'settings'];
+    
+    const mockDebtorForChatbot = {
+        fullname: 'Jane Doe',
+        accountnumber: 'ACCT-78910',
+        currentbalance: 850.75,
+        originalcreditor: 'Global Bank Inc.',
+        settlementOfferPercentage: 40,
+        paymentPlanOptions: "3 monthly payments of $283.58",
+    };
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -193,6 +203,7 @@ const App: React.FC = () => {
                     {renderView()}
                 </main>
             </div>
+            <AiChatbotWidget debtorData={mockDebtorForChatbot} />
         </div>
     );
 };

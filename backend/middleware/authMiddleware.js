@@ -28,3 +28,11 @@ exports.protect = async (req, res, next) => {
     return res.status(401).json({ success: false, msg: 'Not authorized to access this route' });
   }
 };
+
+// Grant access to admin roles
+exports.admin = (req, res, next) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ success: false, msg: 'User role is not authorized to access this route' });
+    }
+    next();
+};

@@ -29,32 +29,33 @@ const CampaignManager: React.FC = () => {
     const [phoneNumbers, setPhoneNumbers] = useState<AvailablePhoneNumber[]>([]);
     const [aiAgents, setAiAgents] = useState<SelectableAIAgent[]>([]);
     const [brandingProfiles, setBrandingProfiles] = useState<BrandingProfile[]>([]);
-    const [loginEvents, setLoginEvents] = useState<LoginEvent[]>([]); // Assuming this might come from a WebSocket or polling in the future
+    const [loginEvents, setLoginEvents] = useState<LoginEvent[]>([]);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const [portfoliosData, launchConfigData] = await Promise.all([
+                apiService.getPortfolios(),
+                apiService.getLaunchConfig(),
+            ]);
+            setPortfolios(portfoliosData);
+            setPlaybooks(launchConfigData.playbooks);
+            setPhoneNumbers(launchConfigData.phoneNumbers);
+            setAiAgents(launchConfigData.aiAgents);
+            setBrandingProfiles(launchConfigData.brandingProfiles);
+        } catch (err: any) {
+            setError(err.message || 'Failed to load campaign data.');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const loadData = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-                const [portfoliosData, launchConfigData] = await Promise.all([
-                    apiService.getPortfolios(),
-                    apiService.getLaunchConfig(),
-                ]);
-                setPortfolios(portfoliosData);
-                setPlaybooks(launchConfigData.playbooks);
-                setPhoneNumbers(launchConfigData.phoneNumbers);
-                setAiAgents(launchConfigData.aiAgents);
-                setBrandingProfiles(launchConfigData.brandingProfiles);
-            } catch (err: any) {
-                setError(err.message || 'Failed to load campaign data.');
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
         loadData();
     }, []);
 
@@ -73,27 +74,31 @@ const CampaignManager: React.FC = () => {
         console.log(`Updating debtor ${debtorId} to status ${status}`);
     };
     
-    const handleUpdatePortfolioStatus = (portfolioId: string, status: PortfolioStatus) => {
-        // This would be an API call
-        setPortfolios(prev => prev.map(p => p.id === portfolioId ? { ...p, status } : p));
+    const handleUpdatePortfolioStatus = async (portfolioId: string, status: PortfolioStatus) => {
+        try {
+            const updatedPortfolio = await apiService.updatePortfolio(portfolioId, { status });
+            setPortfolios(prev => prev.map(p => p.id === portfolioId ? updatedPortfolio : p));
+        } catch (err) {
+            alert('Failed to update portfolio status.');
+        }
     };
 
-    const handleUpdateSettlementOffer = (portfolioId: string, percentage: number) => {
-        // This would be an API call
-        setPortfolios(prev => 
-            prev.map(p => 
-                p.id === portfolioId ? { ...p, settlementOfferPercentage: percentage } : p
-            )
-        );
+    const handleUpdateSettlementOffer = async (portfolioId: string, percentage: number) => {
+        try {
+            const updatedPortfolio = await apiService.updatePortfolio(portfolioId, { settlementOfferPercentage: percentage });
+            setPortfolios(prev => prev.map(p => p.id === portfolioId ? updatedPortfolio : p));
+        } catch (err) {
+            alert('Failed to update settlement offer.');
+        }
     };
 
-    const handleLaunchCampaign = (portfolioId: string, brandingProfileId: string) => {
-        // This would be an API call
-        setPortfolios(prev => prev.map(p => 
-            p.id === portfolioId 
-                ? { ...p, status: 'Active', brandingProfileId: brandingProfileId } 
-                : p
-        ));
+    const handleLaunchCampaign = async (portfolioId: string, brandingProfileId: string) => {
+        try {
+            const updatedPortfolio = await apiService.updatePortfolio(portfolioId, { status: 'Active', brandingProfileId });
+            setPortfolios(prev => prev.map(p => p.id === portfolioId ? updatedPortfolio : p));
+        } catch(err) {
+            alert('Failed to launch campaign.');
+        }
     };
 
     const handleShowNotification = (debtor: Debtor, message: string, icon: 'check' | 'warning') => {

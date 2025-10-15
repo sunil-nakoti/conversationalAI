@@ -273,7 +273,18 @@ export interface BillingMeterEntry { timestamp: string; eventType: BillingEventT
 // Live Campaign & Reporting
 export interface LiveCall { id: string; debtorName: string; agent: string; status: 'Ringing' | 'Connected' | 'Completed' | 'Voicemail' | 'Failed'; sentiment: 'Positive' | 'Neutral' | 'Negative'; duration: number; timestamp: number; isCoached?: boolean; }
 export interface LiveSms { id: string; debtorName: string; direction: 'inbound' | 'outbound'; message: string; timestamp: number; status?: 'Delivered' | 'Failed'; }
-export interface CallLogEntry { id: string; callNumber: string; createdAt: string; scheduledTime: string; status: 'completed' | 'voicemail' | 'no answer' | 'invalid'; inbound: boolean; duration: number; hasRecording: boolean; }
+export interface CallLogEntry {
+    id: string;
+    callNumber: string;
+    createdAt: string;
+    scheduledTime: string;
+    status: 'completed' | 'voicemail' | 'no answer' | 'invalid';
+    inbound: boolean;
+    duration: number;
+    hasRecording: boolean;
+    aiSupervisorScore?: number;
+    sentiment?: 'Positive' | 'Neutral' | 'Negative';
+}
 export interface Payment { id: string; debtorId: string; debtorName: string; accountNumber: string; portfolioId: string; portfolioName: string; paymentAmount: number; paymentDate: string; paymentMethod: 'Online' | 'Telephonic'; paymentType: 'Settlement' | 'Payment Plan' | 'Custom'; status: 'Completed' | 'Failed' | 'Pending'; confirmationNumber: string; }
 export interface ScheduledPayment { id: string; debtorId: string; debtorName: string; accountNumber: string; paymentPlanId: string; scheduledDate: string; scheduledAmount: number; status: 'Paid' | 'Missed' | 'Pending'; }
 

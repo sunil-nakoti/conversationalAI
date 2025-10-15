@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from './Icon';
-import { IconName, IntelligenceTab, GoldenScript, BrandingProfile, AIAgentProfile, NegotiationModel } from '../types';
+import { IconName, IntelligenceTab, GoldenScript, BrandingProfile, AIAgentProfile, NegotiationModel, Objection, SmsTemplate, CallReport } from '../../types';
 import PlaybookBuilder from './intelligence/PlaybookBuilder';
 import ObjectionLibrary from './intelligence/ObjectionLibrary';
 import CallReports from './intelligence/CallReports';
@@ -9,7 +9,6 @@ import TrainingCenter from './TrainingCenter';
 import Tooltip from './Tooltip';
 import SmsTrainingLibrary from './intelligence/SmsTrainingLibrary';
 import GoldenScriptLibrary from './intelligence/GoldenScriptLibrary';
-import BrandingManager from './intelligence/BrandingManager';
 import NegotiationModelStudio from './intelligence/NegotiationModelStudio';
 import { apiService } from '../services/apiService';
 
@@ -32,12 +31,16 @@ const IntelligenceCenter: React.FC = () => {
     const [goldenScripts, setGoldenScripts] = useState<GoldenScript[]>([]);
     const [negotiationModels, setNegotiationModels] = useState<NegotiationModel[]>([]);
     const [brandingProfiles, setBrandingProfiles] = useState<BrandingProfile[]>([]);
+    const [objections, setObjections] = useState<Objection[]>([]);
+    const [smsTemplates, setSmsTemplates] = useState<SmsTemplate[]>([]);
+    const [callReports, setCallReports] = useState<CallReport[]>([]);
 
     useEffect(() => {
         const loadData = async () => {
             try {
                 setLoading(true);
                 setError(null);
+                // Fetch all data required for all intelligence tabs at once
                 const [agentsData, intelligenceData, brandingData] = await Promise.all([
                     apiService.getAgents(),
                     apiService.getIntelligenceData(),
@@ -46,6 +49,9 @@ const IntelligenceCenter: React.FC = () => {
                 setAgents(agentsData);
                 setGoldenScripts(intelligenceData.goldenScripts);
                 setNegotiationModels(intelligenceData.negotiationModels);
+                setObjections(intelligenceData.objections);
+                setSmsTemplates(intelligenceData.smsTemplates);
+                setCallReports(intelligenceData.callReports);
                 setBrandingProfiles(brandingData);
             } catch (err: any) {
                 setError(err.message || 'Failed to load intelligence data.');
@@ -73,13 +79,13 @@ const IntelligenceCenter: React.FC = () => {
             case 'playbooks':
                 return <PlaybookBuilder />;
             case 'objections':
-                return <ObjectionLibrary />;
+                return <ObjectionLibrary objections={objections} setObjections={setObjections} />;
             case 'negotiation':
                 return <NegotiationModelStudio models={negotiationModels} setModels={setNegotiationModels} />;
             case 'smsTraining':
-                return <SmsTrainingLibrary />;
+                return <SmsTrainingLibrary templates={smsTemplates} setTemplates={setSmsTemplates} />;
             case 'reports':
-                return <CallReports />;
+                return <CallReports reports={callReports} setReports={setCallReports} />;
             case 'training':
                 return <TrainingCenter />;
             case 'goldenScripts':
@@ -115,7 +121,7 @@ const IntelligenceCenter: React.FC = () => {
             </div>
 
             <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
-                <nav className="flex space-x-2" aria-label="Tabs">
+                <nav className="flex flex-wrap gap-2" aria-label="Tabs">
                     <TabButton tabName="studio" label="AI Agent Studio" icon="robot" tooltip="Craft and configure the core personality and voice of your AI agents." />
                     <TabButton tabName="playbooks" label="Playbook Builder" icon="drip" tooltip="Visually design the conversational flows and logic your AI agents will follow." />
                     <TabButton tabName="negotiation" label="Negotiation Models" icon="gavel" tooltip="Define and customize agent negotiation strategies." />

@@ -16,9 +16,14 @@ const DebtorSchema = new mongoose.Schema({
         heatmap: [[Number]],
         optimalChannel: String,
     },
-});
+}, { _id: false });
 
 const PortfolioSchema = new mongoose.Schema({
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
     id: { type: String, unique: true, required: true },
     name: String,
     debtors: [DebtorSchema],

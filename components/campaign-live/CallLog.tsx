@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 // FIX: Corrected import path for Icon component
 import { Icon } from '../Icon';
@@ -8,6 +9,7 @@ import { CallLogEntry } from '../../types';
 // Mock Data generation to simulate a real call log
 const generateMockPastCalls = (): CallLogEntry[] => {
     const statuses: CallLogEntry['status'][] = ['completed', 'voicemail', 'no answer', 'invalid'];
+    const sentiments: CallLogEntry['sentiment'][] = ['Positive', 'Neutral', 'Negative'];
     const now = new Date();
     return Array.from({ length: 15 }, (_, i) => {
         const createdAt = new Date(now.getTime() - (i * 3 * 60 * 60 * 1000 + Math.random() * 3 * 60 * 60 * 1000));
@@ -25,6 +27,8 @@ const generateMockPastCalls = (): CallLogEntry[] => {
             inbound: Math.random() > 0.5,
             duration,
             hasRecording: status === 'completed',
+            aiSupervisorScore: status === 'completed' ? Math.floor(Math.random() * 40) + 60 : undefined,
+            sentiment: status === 'completed' ? sentiments[Math.floor(Math.random() * sentiments.length)] : undefined,
         };
     });
 };
@@ -32,8 +36,8 @@ const generateMockPastCalls = (): CallLogEntry[] => {
 const mockPastCalls = generateMockPastCalls();
 const totalCalls = 78770; // From image
 
-const FilterPill: React.FC<{ label: string }> = ({ label }) => (
-    <button className="px-3 py-1 text-sm bg-slate-200 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 rounded-full hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+const FilterPill: React.FC<{ label: string, active?: boolean, onClick?: () => void }> = ({ label, active, onClick }) => (
+    <button className={`px-3 py-1 text-sm rounded-full transition-colors ${active ? 'bg-brand-accent text-white' : 'bg-slate-200 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`} onClick={onClick}>
         {label}
     </button>
 );
@@ -42,9 +46,36 @@ const CallLog: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'past' | 'queued'>('past');
     const [calls] = useState(mockPastCalls);
     const [sortConfig, setSortConfig] = useState<{ key: keyof CallLogEntry, direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
+    const [filters, setFilters] = useState({
+        search: '',
+        score: 'all', // 'all', '>80', '<70'
+        sentiment: 'all', // 'all', 'Positive', 'Neutral', 'Negative'
+        outcome: 'all', // 'all', 'completed', ...
+    });
+
+    const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
+        setFilters(prev => ({ ...prev, [filterName]: value }));
+    };
 
     const sortedCalls = useMemo(() => {
-        const sorted = [...calls].sort((a, b) => {
+        let filtered = [...calls].filter(call => {
+            const searchLower = filters.search.toLowerCase();
+            const searchMatch = !filters.search ||
+                call.callNumber.includes(searchLower) ||
+                call.status.toLowerCase().includes(searchLower);
+
+            const scoreMatch = filters.score === 'all' ||
+                (filters.score === '>80' && call.aiSupervisorScore && call.aiSupervisorScore > 80) ||
+                (filters.score === '<70' && call.aiSupervisorScore && call.aiSupervisorScore < 70);
+            
+            const sentimentMatch = filters.sentiment === 'all' || call.sentiment === filters.sentiment;
+
+            const outcomeMatch = filters.outcome === 'all' || call.status === filters.outcome;
+
+            return searchMatch && scoreMatch && sentimentMatch && outcomeMatch;
+        });
+        
+        const sorted = filtered.sort((a, b) => {
             if (a[sortConfig.key] < b[sortConfig.key]) {
                 return sortConfig.direction === 'asc' ? -1 : 1;
             }
@@ -54,7 +85,7 @@ const CallLog: React.FC = () => {
             return 0;
         });
         return sorted;
-    }, [calls, sortConfig]);
+    }, [calls, sortConfig, filters]);
 
     const handleSort = (key: keyof CallLogEntry) => {
         setSortConfig(prev => ({
@@ -106,23 +137,19 @@ const CallLog: React.FC = () => {
             <div className="my-6 p-4 bg-white dark:bg-brand-secondary rounded-lg border border-slate-200 dark:border-slate-700/50 space-y-4">
                 <div className="relative">
                     <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                    <input type="text" placeholder="Search by phone number, debtor, or status..." className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-white" />
+                    <input 
+                        type="text" 
+                        placeholder="Search by phone number, debtor, or status..." 
+                        value={filters.search}
+                        onChange={e => handleFilterChange('search', e.target.value)}
+                        className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md py-2 pl-10 pr-4 placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-900 dark:text-white" 
+                    />
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <FilterPill label="Completed" />
-                    <FilterPill label="Voicemail" />
-                    <FilterPill label="No Answer" />
-                    <FilterPill label="Invalid" />
-                    <FilterPill label="30s+" />
-                    <FilterPill label="1m+" />
-                    <FilterPill label="3m+" />
-                    <FilterPill label="5m+" />
-                </div>
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <select value={filters.outcome} onChange={e => handleFilterChange('outcome', e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-900 dark:text-white"><option value="all">All Outcomes</option><option value="completed">Completed</option><option value="voicemail">Voicemail</option><option value="no answer">No Answer</option><option value="invalid">Invalid</option></select>
+                    <select value={filters.sentiment} onChange={e => handleFilterChange('sentiment', e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-900 dark:text-white"><option value="all">All Sentiments</option><option value="Positive">Positive</option><option value="Neutral">Neutral</option><option value="Negative">Negative</option></select>
+                    <select value={filters.score} onChange={e => handleFilterChange('score', e.target.value)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-900 dark:text-white"><option value="all">All Scores</option><option value=">80">Score &gt; 80</option><option value="<70">Score &lt; 70</option></select>
                     <input type="date" className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-900 dark:text-white" />
-                    <select className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-900 dark:text-white"><option>Duration</option></select>
-                    <select className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-900 dark:text-white"><option>Call Flow</option></select>
-                    <select className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md p-2 text-slate-900 dark:text-white"><option>Status</option></select>
                 </div>
             </div>
 
@@ -140,9 +167,9 @@ const CallLog: React.FC = () => {
                                     )}
                                 </div>
                             </th>
-                            <th scope="col" className="px-6 py-3">Scheduled Time</th>
                             <th scope="col" className="px-6 py-3">Status</th>
-                            <th scope="col" className="px-6 py-3">Inbound</th>
+                            <th scope="col" className="px-6 py-3">Sentiment</th>
+                            <th scope="col" className="px-6 py-3">AI Score</th>
                             <th scope="col" className="px-6 py-3">Duration</th>
                             <th scope="col" className="px-6 py-3">Recording</th>
                         </tr>
@@ -152,9 +179,9 @@ const CallLog: React.FC = () => {
                             <tr key={call.id} className="border-b border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                 <td className="px-6 py-4 font-mono font-medium text-slate-900 dark:text-white">{call.callNumber}</td>
                                 <td className="px-6 py-4">{formatDate(call.createdAt)}</td>
-                                <td className="px-6 py-4">{formatDate(call.scheduledTime)}</td>
                                 <td className="px-6 py-4 capitalize">{call.status}</td>
-                                <td className="px-6 py-4">{call.inbound ? 'Yes' : 'No'}</td>
+                                <td className="px-6 py-4">{call.sentiment || 'N/A'}</td>
+                                <td className="px-6 py-4 font-semibold">{call.aiSupervisorScore || 'N/A'}</td>
                                 <td className="px-6 py-4">{formatDuration(call.duration)}</td>
                                 <td className="px-6 py-4">
                                     {call.hasRecording && (

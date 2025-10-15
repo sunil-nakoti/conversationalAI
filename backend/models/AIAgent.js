@@ -25,6 +25,11 @@ const AIAgentConfigurationSchema = new mongoose.Schema({
 }, { _id: false });
 
 const AIAgentSchema = new mongoose.Schema({
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
     id: { type: String, unique: true, required: true },
     name: String,
     role: String,

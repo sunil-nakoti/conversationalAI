@@ -7,8 +7,8 @@ const connectDB = require('./config/db');
 dotenv.config({ path: './config/config.env' });
 
 // Validate ENV variables to prevent runtime errors
-if (!process.env.MONGO_URI || !process.env.JWT_SECRET) {
-    console.error('FATAL ERROR: Make sure MONGO_URI and JWT_SECRET are defined in your backend/config/config.env file.');
+if (!process.env.MONGO_URI || !process.env.JWT_SECRET || !process.env.API_KEY) {
+    console.error('FATAL ERROR: Make sure MONGO_URI, JWT_SECRET, and API_KEY are defined in your backend/config/config.env file.');
     process.exit(1);
 }
 
@@ -30,6 +30,13 @@ app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/portfolios', require('./routes/portfolioRoutes'));
 app.use('/api/agents', require('./routes/agentRoutes'));
 app.use('/api/compliance', require('./routes/complianceRoutes'));
+app.use('/api/chatbot', require('./routes/chatbotRoutes'));
+app.use('/api/intelligence', require('./routes/intelligenceRoutes'));
+app.use('/api/reporting', require('./routes/reportingRoutes'));
+app.use('/api/live', require('./routes/liveRoutes'));
+app.use('/api/settings', require('./routes/settingsRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
+
 
 const PORT = process.env.PORT || 5000;
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from './Icon';
-import { JurisdictionRule, LoginEvent, PreDialScrubLogEntry, EmergingRiskTrend, IconName, AvailablePhoneNumber, NumberPool, CallingCadence, BrandingProfile, BrandedCallingSettings } from '../types';
+import { JurisdictionRule, LoginEvent, PreDialScrubLogEntry, EmergingRiskTrend, IconName, AvailablePhoneNumber, NumberPool, CallingCadence, BrandingProfile, BrandedCallingSettings, ConversationalAuditEntry } from '../types';
 import JurisdictionManager from './intelligence/JurisdictionManager';
 import StateManagement from './compliance/StateManagement';
 import EmergingRisks from './compliance/EmergingRisks';
@@ -10,15 +10,6 @@ import ConversationalAudit from './compliance/ConversationalAudit';
 import { apiService } from '../services/apiService';
 
 type ComplianceTab = 'jurisdiction' | 'smart-pool' | 'states' | 'risks' | 'branding' | 'audit';
-
-// Mocks that would come from a real-time source or different endpoint
-const mockScrubLog: PreDialScrubLogEntry[] = [
-    { id: 'sl1', checkTimestamp: new Date(Date.now() - 3600000).toISOString(), phoneNumber: '(555) 123-4567', accountNumber: 'ACC-1001', reassignedStatus: 'Clear', litigatorStatus: 'Clear', wasBlocked: false, blockReason: null },
-    { id: 'sl2', checkTimestamp: new Date(Date.now() - 7200000).toISOString(), phoneNumber: '(555) 987-6543', accountNumber: 'ACC-2034', reassignedStatus: 'Possible Reassign', litigatorStatus: 'Clear', wasBlocked: true, blockReason: 'Possible reassigned number detected.' },
-];
-const mockEmergingRisks: EmergingRiskTrend[] = [
-    { id: 'er1', title: "Mentions of 'Credit Repair' Services", detectedDate: new Date(Date.now() - 86400000 * 3).toISOString(), summary: "A 15% increase in debtors mentioning third-party credit repair services during calls.", keywords: ['credit repair', 'fix my credit'] },
-];
 
 const ComplianceDeskSkeleton: React.FC = () => (
     <div className="animate-pulse space-y-6">
@@ -38,30 +29,51 @@ const ComplianceDesk: React.FC<ComplianceDeskProps> = ({ onPreviewPaymentPage })
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // All state previously passed as props is now managed here
     const [jurisdictionRules, setJurisdictionRules] = useState<JurisdictionRule[]>([]);
     const [phonePool, setPhonePool] = useState<AvailablePhoneNumber[]>([]);
     const [numberPools, setNumberPools] = useState<NumberPool[]>([]);
     const [brandingProfiles, setBrandingProfiles] = useState<BrandingProfile[]>([]);
+    const [emergingRisks, setEmergingRisks] = useState<EmergingRiskTrend[]>([]);
+    const [scrubLog, setScrubLog] = useState<PreDialScrubLogEntry[]>([]);
+    const [conversationalAudit, setConversationalAudit] = useState<ConversationalAuditEntry[]>([]);
     
-    // Settings previously in App.tsx
-    const [callingCadence, setCallingCadence] = useState<CallingCadence>('human-simulated');
-    const [isBehaviorSimulationEnabled, setIsBehaviorSimulationEnabled] = useState(true);
-    const [incubationHours, setIncubationHours] = useState(48);
-    const [brandedCallingSettings, setBrandedCallingSettings] = useState<BrandedCallingSettings>({ isEnabled: true, defaultBrandingProfileId: null });
+    // Settings are now fetched from their own dedicated endpoint
+    const [settings, setSettings] = useState({
+        callingCadence: 'human-simulated' as CallingCadence,
+        isBehaviorSimulationEnabled: true,
+        incubationHours: 48,
+        brandedCallingSettings: { isEnabled: true, defaultBrandingProfileId: null } as BrandedCallingSettings
+    });
 
     useEffect(() => {
         const loadData = async () => {
             try {
                 setLoading(true);
                 setError(null);
-                const data = await apiService.getComplianceData();
-                setJurisdictionRules(data.jurisdictionRules);
-                setPhonePool(data.phonePool);
-                setNumberPools(data.numberPools);
-                setBrandingProfiles(data.brandingProfiles);
-                if (data.brandingProfiles.length > 0) {
-                    setBrandedCallingSettings(prev => ({ ...prev, defaultBrandingProfileId: data.brandingProfiles[0].id }));
+                const [complianceData, settingsData] = await Promise.all([
+                    apiService.getComplianceData(),
+                    apiService.getSettings()
+                ]);
+
+                setJurisdictionRules(complianceData.jurisdictionRules);
+                setPhonePool(complianceData.phonePool);
+                setNumberPools(complianceData.numberPools);
+                setBrandingProfiles(complianceData.brandingProfiles);
+                setEmergingRisks(complianceData.emergingRisks);
+                setScrubLog(complianceData.scrubLog);
+                setConversationalAudit(complianceData.conversationalAudit);
+                
+                if (settingsData) {
+                    setSettings({
+                        callingCadence: settingsData.callingCadence,
+                        isBehaviorSimulationEnabled: settingsData.isBehaviorSimulationEnabled,
+                        incubationHours: settingsData.incubationHours,
+                        brandedCallingSettings: settingsData.brandedCallingSettings
+                    });
+                }
+                
+                if (complianceData.brandingProfiles.length > 0 && !settingsData.brandedCallingSettings.defaultBrandingProfileId) {
+                    setSettings(prev => ({ ...prev, brandedCallingSettings: {...prev.brandedCallingSettings, defaultBrandingProfileId: complianceData.brandingProfiles[0].id }}));
                 }
             } catch (err: any) {
                 setError(err.message || "Failed to load compliance data.");
@@ -72,35 +84,50 @@ const ComplianceDesk: React.FC<ComplianceDeskProps> = ({ onPreviewPaymentPage })
         loadData();
     }, []);
 
+    const handleSettingsChange = async (newSettings: Partial<typeof settings>) => {
+        const updatedSettings = { ...settings, ...newSettings };
+        setSettings(updatedSettings);
+        try {
+            await apiService.updateSettings(updatedSettings);
+        } catch (err) {
+            alert('Failed to save settings.');
+            // Optionally revert state
+        }
+    };
+
 
     const renderContent = () => {
         if (loading) return <ComplianceDeskSkeleton />;
         if (error) return <div className="text-red-500 text-center">{error}</div>;
 
         switch (activeTab) {
-            case 'audit': return <ConversationalAudit />;
+            case 'audit': return <ConversationalAudit auditData={conversationalAudit} />;
             case 'jurisdiction': return <JurisdictionManager rules={jurisdictionRules} setRules={setJurisdictionRules} />;
             case 'smart-pool': return <NumberReputation 
                 phonePool={phonePool}
                 setPhonePool={setPhonePool}
                 numberPools={numberPools}
                 setNumberPools={setNumberPools}
-                callingCadence={callingCadence}
-                setCallingCadence={setCallingCadence}
-                isBehaviorSimulationEnabled={isBehaviorSimulationEnabled}
-                setIsBehaviorSimulationEnabled={setIsBehaviorSimulationEnabled}
-                incubationHours={incubationHours}
-                setIncubationHours={setIncubationHours}
+                callingCadence={settings.callingCadence}
+                // FIX: Add type assertion to resolve SetStateAction mismatch.
+                setCallingCadence={(val) => handleSettingsChange({ callingCadence: val as CallingCadence })}
+                isBehaviorSimulationEnabled={settings.isBehaviorSimulationEnabled}
+                // FIX: Add type assertion to resolve SetStateAction mismatch.
+                setIsBehaviorSimulationEnabled={(val) => handleSettingsChange({ isBehaviorSimulationEnabled: val as boolean })}
+                incubationHours={settings.incubationHours}
+                // FIX: Add type assertion to resolve SetStateAction mismatch.
+                setIncubationHours={(val) => handleSettingsChange({ incubationHours: val as number })}
                 brandingProfiles={brandingProfiles}
-                logEntries={mockScrubLog} 
+                logEntries={scrubLog} 
             />;
             case 'states': return <StateManagement />;
-            case 'risks': return <EmergingRisks trends={mockEmergingRisks} />;
+            case 'risks': return <EmergingRisks trends={emergingRisks} />;
             case 'branding': return <BrandingManager 
                                         profiles={brandingProfiles} 
                                         setProfiles={setBrandingProfiles} 
-                                        brandedCallingSettings={brandedCallingSettings}
-                                        setBrandedCallingSettings={setBrandedCallingSettings}
+                                        brandedCallingSettings={settings.brandedCallingSettings}
+                                        // FIX: Add type assertion to resolve SetStateAction mismatch.
+                                        setBrandedCallingSettings={(val) => handleSettingsChange({ brandedCallingSettings: val as BrandedCallingSettings })}
                                         onPreviewPaymentPage={onPreviewPaymentPage}
                                     />;
             default: return null;
@@ -128,7 +155,7 @@ const ComplianceDesk: React.FC<ComplianceDeskProps> = ({ onPreviewPaymentPage })
                 <p className="text-slate-500 dark:text-slate-400 text-sm">Monitor and manage all compliance-related activities and rules.</p>
             </div>
              <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
-                <nav className="flex flex-wrap space-x-2" aria-label="Tabs">
+                <nav className="flex flex-wrap gap-2" aria-label="Tabs">
                     <TabButton tabName="audit" label="Conversational Audit" icon="user-round-search" />
                     <TabButton tabName="jurisdiction" label="Jurisdiction Rules" icon="gavel" />
                     <TabButton tabName="smart-pool" label="Smart Pool" icon="server-cog" />

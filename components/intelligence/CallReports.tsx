@@ -2,63 +2,6 @@ import React, { useState } from 'react';
 import { CallReport } from '../../types';
 import { Icon } from '../Icon';
 
-const mockCallReportsData: CallReport[] = [
-    {
-        id: 'cr1',
-        debtorName: 'Jane Doe',
-        agentName: 'Zephyr',
-        timestamp: '2024-08-01T14:22:00Z',
-        outcome: 'PTP Secured',
-        duration: 185,
-        audioUrl: 'https://example.com/call1.mp3', // Placeholder
-        transcript: [
-            { speaker: 'AI', text: 'Hello, I am calling from a collection agency...', timestamp: 2 },
-            { speaker: 'Debtor', text: 'Oh, right. I was expecting this call.', timestamp: 8 },
-            { speaker: 'AI', text: 'We are calling about your outstanding balance of $875. Are you in a position to clear this today?', timestamp: 12 },
-            { speaker: 'Debtor', text: "I can't pay it all right now, but I can make a payment.", timestamp: 25 },
-            { speaker: 'AI', text: "I understand. We can set up a payment plan. How does two payments of $437.50 sound?", timestamp: 35 },
-            { speaker: 'Debtor', text: 'Yes, that works for me. Thank you.', timestamp: 48 },
-        ],
-        aiSupervisorScore: 95,
-        aiSupervisorNotes: "Excellent sentiment control and successful negotiation to a payment plan. Mini-Miranda was clear. No compliance issues detected.",
-        humanFeedback: 'good'
-    },
-    {
-        id: 'cr2',
-        debtorName: 'John Smith',
-        agentName: 'Kore',
-        timestamp: '2024-08-01T11:05:00Z',
-        outcome: 'Call Failed - Wrong Number',
-        duration: 45,
-        audioUrl: 'https://example.com/call2.mp3',
-        transcript: [
-            { speaker: 'AI', text: 'Hello, may I speak with John Smith?', timestamp: 3 },
-            { speaker: 'Debtor', text: 'There is no one here by that name.', timestamp: 9 },
-            { speaker: 'AI', text: 'I apologize. I must have the wrong number. I will update our records.', timestamp: 15 },
-        ],
-        aiSupervisorScore: 99,
-        aiSupervisorNotes: "Correctly identified a wrong number and terminated the call appropriately. Professional and efficient.",
-        humanFeedback: null
-    },
-     {
-        id: 'cr3',
-        debtorName: 'Peter Jones',
-        agentName: 'Zephyr',
-        timestamp: '2024-07-31T18:45:00Z',
-        outcome: 'Refused to Pay',
-        duration: 121,
-        audioUrl: 'https://example.com/call3.mp3',
-        transcript: [
-            { speaker: 'AI', text: 'Hello, I am calling regarding your account...', timestamp: 5 },
-            { speaker: 'Debtor', text: "I'm not paying this. This is ridiculous.", timestamp: 11 },
-             { speaker: 'AI', text: "I understand your frustration, but the balance remains outstanding. Perhaps we can find a solution that works for you.", timestamp: 18 },
-        ],
-        aiSupervisorScore: 78,
-        aiSupervisorNotes: "Agent maintained a calm and empathetic tone despite debtor frustration. Failed to secure PTP, but successfully de-escalated the conversation.",
-        humanFeedback: null
-    },
-];
-
 const TranscriptItem: React.FC<{ entry: CallReport['transcript'][0] }> = ({ entry }) => {
     const isAI = entry.speaker === 'AI';
     const formatTime = (seconds: number) => new Date(seconds * 1000).toISOString().substr(14, 5);
@@ -78,7 +21,16 @@ interface ReportDetailProps {
 }
 
 const ReportDetail: React.FC<ReportDetailProps> = ({ report, onSetFeedback }) => {
+    const [copied, setCopied] = useState(false);
     const scoreColor = report.aiSupervisorScore && report.aiSupervisorScore >= 85 ? 'text-green-500' : report.aiSupervisorScore && report.aiSupervisorScore >= 70 ? 'text-yellow-500' : 'text-red-500';
+
+    const handleCopyNotes = () => {
+        if (report.aiSupervisorNotes) {
+            navigator.clipboard.writeText(report.aiSupervisorNotes);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
 
     return (
         <td colSpan={7} className="p-0">
@@ -104,7 +56,13 @@ const ReportDetail: React.FC<ReportDetailProps> = ({ report, onSetFeedback }) =>
 
                     {report.aiSupervisorScore !== undefined && (
                         <div className="bg-white dark:bg-slate-700/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                            <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-2">AI Supervisor Analysis</h4>
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-semibold text-slate-900 dark:text-white">AI Supervisor Analysis</h4>
+                                <button onClick={handleCopyNotes} className="flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-brand-accent hover:text-sky-500 disabled:opacity-50">
+                                    <Icon name={copied ? 'check' : 'copy'} className="h-4 w-4" />
+                                    {copied ? 'Copied!' : 'Copy Notes'}
+                                </button>
+                            </div>
                             <div className="flex items-start gap-4">
                                 <div className="text-center">
                                     <p className={`text-4xl font-bold ${scoreColor}`}>{report.aiSupervisorScore}</p>
@@ -135,9 +93,12 @@ const ReportDetail: React.FC<ReportDetailProps> = ({ report, onSetFeedback }) =>
     );
 };
 
+interface CallReportsProps {
+    reports: CallReport[];
+    setReports: React.Dispatch<React.SetStateAction<CallReport[]>>;
+}
 
-const CallReports: React.FC = () => {
-    const [reports, setReports] = useState<CallReport[]>(mockCallReportsData);
+const CallReports: React.FC<CallReportsProps> = ({ reports, setReports }) => {
     const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
 
     const handleToggleExpand = (reportId: string) => {
@@ -150,6 +111,8 @@ const CallReports: React.FC = () => {
                 r.id === reportId ? { ...r, humanFeedback: r.humanFeedback === feedback ? null : feedback } : r
             )
         );
+        // In a real app, this would be an API call:
+        // apiService.updateCallReport(reportId, { humanFeedback: feedback });
     };
 
     const getScoreColor = (score: number) => {

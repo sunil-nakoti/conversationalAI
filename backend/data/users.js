@@ -6,6 +6,12 @@ const users = [
     role: 'admin',
   },
   {
+    name: 'Jeffery Hartman',
+    email: 'jhartman.fitz@gmail.com',
+    password: '$Bankcall24',
+    role: 'admin',
+  },
+  {
     name: 'Test User',
     email: 'user@example.com',
     password: 'password123',

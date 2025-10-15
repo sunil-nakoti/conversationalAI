@@ -24,7 +24,6 @@ const Settings: React.FC = () => {
 
     // State for data fetched from backend
     const [billingLog, setBillingLog] = useState<BillingMeterEntry[]>([]);
-    const [accountCredits, setAccountCredits] = useState(0);
     const [resilienceStatus, setResilienceStatus] = useState<ResilienceStatus | null>(null);
     const [proposedRuleUpdates, setProposedRuleUpdates] = useState<ProposedRuleUpdate[]>([]);
     const [jurisdictionRules, setJurisdictionRules] = useState<JurisdictionRule[]>([]);
@@ -35,16 +34,17 @@ const Settings: React.FC = () => {
             try {
                 setLoading(true);
                 setError(null);
-                const [settingsData, complianceData] = await Promise.all([
-                    apiService.getSettingsData(),
-                    apiService.getComplianceData()
+                const [billingData, complianceData, settingsData] = await Promise.all([
+                    apiService.getBillingData(),
+                    apiService.getComplianceData(),
+                    apiService.getSettings()
                 ]);
 
-                setBillingLog(settingsData.billingLog);
-                setAccountCredits(settingsData.accountCredits);
-                setResilienceStatus(settingsData.resilienceStatus);
-                setProposedRuleUpdates(settingsData.proposedRuleUpdates);
+                setBillingLog(billingData.billingLog);
+                setResilienceStatus(billingData.resilienceStatus);
+                setProposedRuleUpdates(settingsData.proposedRuleUpdates || []);
                 setJurisdictionRules(complianceData.jurisdictionRules);
+                setIsAutoComplianceEnabled(settingsData.isAutoComplianceEnabled || false);
 
             } catch (err: any) {
                 setError(err.message || "Failed to load settings data.");
@@ -54,6 +54,16 @@ const Settings: React.FC = () => {
         };
         loadData();
     }, []);
+    
+    const handleAutoComplianceToggle = async (isEnabled: boolean) => {
+        setIsAutoComplianceEnabled(isEnabled);
+        try {
+            await apiService.updateSettings({ isAutoComplianceEnabled: isEnabled });
+        } catch(err) {
+            alert('Failed to update setting.');
+            setIsAutoComplianceEnabled(!isEnabled); // Revert on error
+        }
+    };
 
     const TabButton: React.FC<{ tabName: SettingsTab; label: string; icon: IconName }> = ({ tabName, label, icon }) => (
         <button
@@ -78,7 +88,8 @@ const Settings: React.FC = () => {
                 return (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div className="lg:col-span-2">
-                            <UsageSummaryWidget billingLog={billingLog} accountCredits={accountCredits} />
+                            {/* Billing log would come from its own API call in a real app */}
+                            <UsageSummaryWidget billingLog={billingLog} accountCredits={500} />
                         </div>
                         <WebhookTester />
                         {resilienceStatus && (
@@ -96,7 +107,7 @@ const Settings: React.FC = () => {
                         proposedRuleUpdates={proposedRuleUpdates}
                         setProposedRuleUpdates={setProposedRuleUpdates}
                         isAutoComplianceEnabled={isAutoComplianceEnabled}
-                        setIsAutoComplianceEnabled={setIsAutoComplianceEnabled}
+                        setIsAutoComplianceEnabled={handleAutoComplianceToggle}
                     />
                 );
             case 'api':
