@@ -121,7 +121,7 @@ const ComplianceDesk: React.FC<ComplianceDeskProps> = ({ onPreviewPaymentPage })
                 logEntries={scrubLog} 
             />;
             case 'states': return <StateManagement />;
-            case 'risks': return <EmergingRisks trends={emergingRisks} />;
+            case 'risks': return <EmergingRisks trends={emergingRisks} setTrends={setEmergingRisks} />;
             case 'branding': return <BrandingManager 
                                         profiles={brandingProfiles} 
                                         setProfiles={setBrandingProfiles} 

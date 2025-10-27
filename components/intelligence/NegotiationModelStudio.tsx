@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Icon } from '../Icon';
 import { NegotiationModel } from '../../types';
 import Tooltip from '../Tooltip';
+import { apiService } from '../../services/apiService';
 
 interface NegotiationModelStudioProps {
     models: NegotiationModel[];
@@ -38,6 +39,8 @@ const ToggleSwitch: React.FC<{ label: string; tooltip: string; checked: boolean;
 const NegotiationModelStudio: React.FC<NegotiationModelStudioProps> = ({ models, setModels }) => {
     const [selectedModelId, setSelectedModelId] = useState<string | null>(models[0]?.id || null);
     const [editableModel, setEditableModel] = useState<Partial<NegotiationModel> | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
 
     useEffect(() => {
         if (selectedModelId) {
@@ -76,10 +79,25 @@ const NegotiationModelStudio: React.FC<NegotiationModelStudioProps> = ({ models,
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!editableModel || !editableModel.id) return;
-        setModels(prev => prev.map(m => m.id === editableModel.id ? (editableModel as NegotiationModel) : m));
-        alert('Model saved!');
+        setIsSaving(true);
+        setSaveSuccess(false);
+
+        const updatedModels = models.map(m => 
+            m.id === editableModel.id ? (editableModel as NegotiationModel) : m
+        );
+
+        try {
+            const savedModels = await apiService.updateNegotiationModels(updatedModels);
+            setModels(savedModels);
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 2000); // Reset after 2s
+        } catch (error) {
+            console.error("Failed to save negotiation models", error);
+            alert("Error: Could not save models. See console for details.");
+        }
+        setIsSaving(false);
     };
     
     const handleFieldChange = (field: keyof NegotiationModel, value: any) => {
@@ -133,7 +151,20 @@ const NegotiationModelStudio: React.FC<NegotiationModelStudioProps> = ({ models,
                             <h2 className="text-xl font-bold text-slate-900 dark:text-white">Edit: {editableModel.name}</h2>
                             <div className="flex gap-2">
                                 <button onClick={handleDelete} className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-500/10 rounded-md"><Icon name="trash" className="h-5 w-5"/></button>
-                                <button onClick={handleSave} className="flex items-center gap-2 bg-brand-accent text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-500"><Icon name="check" className="h-5 w-5"/>Save Model</button>
+                                <button 
+    onClick={handleSave} 
+    disabled={isSaving || saveSuccess}
+    className="flex items-center gap-2 bg-brand-accent text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-500 disabled:bg-slate-400 dark:disabled:bg-slate-600 transition-colors"
+>
+    {isSaving ? (
+        <Icon name="spinner" className="h-5 w-5 animate-spin"/>
+    ) : saveSuccess ? (
+        <Icon name="check" className="h-5 w-5"/>
+    ) : (
+        <Icon name="check" className="h-5 w-5"/>
+    )}
+    {isSaving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Model'}
+</button>
                             </div>
                         </div>
 

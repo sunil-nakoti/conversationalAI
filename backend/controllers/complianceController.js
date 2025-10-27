@@ -3,6 +3,10 @@ const JurisdictionRule = require('../models/JurisdictionRule');
 const BrandingProfile = require('../models/BrandingProfile');
 const ProposedRuleUpdate = require('../models/ProposedRuleUpdate');
 const PhoneNumber = require('../models/PhoneNumber');
+const Portfolio = require('../models/Portfolio');
+const StateManagement = require('../models/StateManagement');
+const EmergingRisk = require('../models/EmergingRisk');
+const ConversationalAudit = require('../models/ConversationalAudit');
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -120,70 +124,82 @@ exports.getComplianceData = async (req, res, next) => {
   try {
     const query = req.user.role === 'admin' ? {} : { user: req.user.id };
     
-    const [jurisdictionRules, brandingProfiles, phonePool] = await Promise.all([
+    const [jurisdictionRules, brandingProfiles, phonePool, emergingRisks, conversationalAudit] = await Promise.all([
         JurisdictionRule.find({}), // Rules are global
         BrandingProfile.find(query),
-        PhoneNumber.find(query)
+        PhoneNumber.find(query),
+        EmergingRisk.find(query),
+        ConversationalAudit.find(query)
     ]);
+
+    if (emergingRisks.length === 0) {
+      const mockRisks = [
+        {
+          user: req.user.id,
+          title: 'Mentions of "Student Loan Forgiveness"',
+          detectedDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          summary: 'An increasing number of debtors are mentioning federal student loan forgiveness programs as a reason for not paying other consumer debts. This suggests a potential misunderstanding of how these programs work.',
+          keywords: ['student loan', 'forgiveness', 'Biden', 'erased'],
+        },
+        {
+          user: req.user.id,
+          title: 'Disputes based on "Credit Repair" company advice',
+          detectedDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+          summary: 'Debtors are citing advice from third-party credit repair companies to dispute valid debts. Agents should be prepared to explain the debt validation process clearly.',
+          keywords: ['credit repair', 'disputing this', 'told me not to pay', '609 letter'],
+        }
+      ];
+      await EmergingRisk.insertMany(mockRisks);
+      emergingRisks.push(...mockRisks);
+    }
+
+    if (conversationalAudit.length === 0) {
+      const mockAudits = [
+        {
+          user: req.user.id,
+          callId: 'call_abc_123',
+          debtorName: 'Michael Chen',
+          agentName: 'Zephyr',
+          timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+          riskType: 'Emotional Escalation',
+          riskScore: 88,
+          summary: 'Agent Zephyr continued to press for payment after the debtor mentioned a recent death in the family. The debtor became audibly upset, and their sentiment dropped sharply. This could be perceived as harassment.',
+          flaggedTranscriptSnippet: 'Debtor: "...my mother just passed away last week." Agent: "I understand, but we still need to resolve this balance of $850."',
+          sentimentTrend: [0.7, 0.6, 0.2, 0.1],
+        },
+        {
+          user: req.user.id,
+          callId: 'call_def_456',
+          debtorName: 'Sarah Johnson',
+          agentName: 'Kore',
+          timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+          riskType: 'Pressure Tactics',
+          riskScore: 75,
+          summary: 'Agent Kore used language implying that immediate payment was the only way to avoid negative consequences, which could be interpreted as a pressure tactic. The agent mentioned "We need to solve this today."',
+          flaggedTranscriptSnippet: 'Agent: "If you can\'t make a payment today, we won\'t be able to offer this settlement again."',
+          sentimentTrend: [0.5, 0.4, 0.3, 0.3],
+        },
+        {
+          user: req.user.id,
+          callId: 'call_ghi_789',
+          debtorName: 'David Miller',
+          agentName: 'Zephyr',
+          timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+          riskType: 'Potential Confusion',
+          riskScore: 62,
+          summary: 'The agent explained the payment plan options, but the debtor repeatedly expressed confusion about the total amount and due dates. The agent did not adequately clarify, leading to potential misunderstanding of the terms.',
+          flaggedTranscriptSnippet: 'Debtor: "So is it $50 now and then... wait, I thought you said the total was $300?"',
+          sentimentTrend: [0.6, 0.5, 0.4, 0.5],
+        }
+      ];
+      await ConversationalAudit.insertMany(mockAudits);
+      conversationalAudit.push(...mockAudits);
+    }
     
-    // In a real app, numberPools, emergingRisks, etc. would come from their own models
+    // In a real app, numberPools, etc. would come from their own models
     const mockData = {
         numberPools: [{id: 'pool1', name: 'Primary Pool', brandingProfileId: brandingProfiles[0]?.id}],
-        emergingRisks: [
-            {
-                id: 'er1',
-                title: 'Mentions of "Student Loan Forgiveness"',
-                detectedDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-                summary: 'An increasing number of debtors are mentioning federal student loan forgiveness programs as a reason for not paying other consumer debts. This suggests a potential misunderstanding of how these programs work.',
-                keywords: ['student loan', 'forgiveness', 'Biden', 'erased'],
-            },
-            {
-                id: 'er2',
-                title: 'Disputes based on "Credit Repair" company advice',
-                detectedDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-                summary: 'Debtors are citing advice from third-party credit repair companies to dispute valid debts. Agents should be prepared to explain the debt validation process clearly.',
-                keywords: ['credit repair', 'disputing this', 'told me not to pay', '609 letter'],
-            }
-        ],
         scrubLog: [],
-        conversationalAudit: [
-            {
-                id: 'ca1',
-                callId: 'call_abc_123',
-                debtorName: 'Michael Chen',
-                agentName: 'Zephyr',
-                timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-                riskType: 'Emotional Escalation',
-                riskScore: 88,
-                summary: 'Agent Zephyr continued to press for payment after the debtor mentioned a recent death in the family. The debtor became audibly upset, and their sentiment dropped sharply. This could be perceived as harassment.',
-                flaggedTranscriptSnippet: 'Debtor: "...my mother just passed away last week." Agent: "I understand, but we still need to resolve this balance of $850."',
-                sentimentTrend: [0.7, 0.6, 0.2, 0.1],
-            },
-            {
-                id: 'ca2',
-                callId: 'call_def_456',
-                debtorName: 'Sarah Johnson',
-                agentName: 'Kore',
-                timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-                riskType: 'Pressure Tactics',
-                riskScore: 75,
-                summary: 'Agent Kore used language implying that immediate payment was the only way to avoid negative consequences, which could be interpreted as a pressure tactic. The agent mentioned "We need to solve this today."',
-                flaggedTranscriptSnippet: 'Agent: "If you can\'t make a payment today, we won\'t be able to offer this settlement again."',
-                sentimentTrend: [0.5, 0.4, 0.3, 0.3],
-            },
-            {
-                id: 'ca3',
-                callId: 'call_ghi_789',
-                debtorName: 'David Miller',
-                agentName: 'Zephyr',
-                timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-                riskType: 'Potential Confusion',
-                riskScore: 62,
-                summary: 'The agent explained the payment plan options, but the debtor repeatedly expressed confusion about the total amount and due dates. The agent did not adequately clarify, leading to potential misunderstanding of the terms.',
-                flaggedTranscriptSnippet: 'Debtor: "So is it $50 now and then... wait, I thought you said the total was $300?"',
-                sentimentTrend: [0.6, 0.5, 0.4, 0.5],
-            }
-        ],
     };
 
     res.status(200).json({
@@ -192,6 +208,8 @@ exports.getComplianceData = async (req, res, next) => {
         jurisdictionRules,
         phonePool,
         brandingProfiles,
+        emergingRisks,
+        conversationalAudit,
         ...mockData
       }
     });
@@ -295,4 +313,146 @@ exports.researchUpdates = async (req, res, next) => {
         console.error(`Error in researchUpdates for ${jurisdiction.state}:`, error);
         res.status(500).json({ success: false, msg: `Failed to analyze compliance data for ${jurisdiction.state}.` });
     }
+};
+
+// @desc    Update Jurisdiction Rules
+// @route   PUT /api/compliance/jurisdiction-rules
+// @access  Private
+exports.updateJurisdictionRules = async (req, res, next) => {
+  try {
+    const rules = req.body;
+    const promises = rules.map(rule => 
+      JurisdictionRule.findOneAndUpdate({ id: rule.id }, rule, {
+        new: true,
+        upsert: true, // Create a new document if one doesn't exist
+        runValidators: true
+      })
+    );
+    const updatedRules = await Promise.all(promises);
+    res.status(200).json({ success: true, data: updatedRules });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, msg: 'Server Error' });
+  }
+};
+
+// @desc    Update Branding Profiles
+// @route   PUT /api/compliance/branding-profiles
+// @access  Private
+exports.updateBrandingProfiles = async (req, res, next) => {
+  try {
+    const profiles = req.body;
+    const promises = profiles.map(profile => 
+      BrandingProfile.findOneAndUpdate({ id: profile.id }, profile, {
+        new: true,
+        upsert: true, // Create a new document if one doesn't exist
+        runValidators: true
+      })
+    );
+    const updatedProfiles = await Promise.all(promises);
+    res.status(200).json({ success: true, data: updatedProfiles });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, msg: 'Server Error' });
+  }
+};
+
+// @desc    Get State Management Settings
+// @route   GET /api/compliance/state-management
+// @access  Private
+exports.getStateManagement = async (req, res, next) => {
+  try {
+    const [settings, counts] = await Promise.all([
+      StateManagement.findOne({ user: req.user.id }),
+      Portfolio.aggregate([
+        { $match: { user: req.user._id } },
+        { $unwind: '$debtors' },
+        { $group: { _id: '$debtors.state', count: { $sum: 1 } } },
+        { $project: { state: '$_id', count: 1, _id: 0 } }
+      ])
+    ]);
+
+    let finalSettings = settings;
+    if (!finalSettings) {
+      const allStateCodes = [
+          'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 
+          'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 
+          'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 
+          'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
+      ];
+      finalSettings = await StateManagement.create({
+        user: req.user.id,
+        states: allStateCodes.map(code => ({ code, status: 'Included' }))
+      });
+    }
+
+    const countsMap = new Map(counts.map(item => [item.state, item.count]));
+    const dataWithCounts = {
+      ...finalSettings.toObject(),
+      states: finalSettings.states.map(s => ({
+        ...s,
+        accountCount: countsMap.get(s.code) || 0
+      }))
+    };
+
+    res.status(200).json({ success: true, data: dataWithCounts });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, msg: 'Server Error' });
+  }
+};
+
+// @desc    Update State Management Settings
+// @route   PUT /api/compliance/state-management
+// @access  Private
+exports.updateStateManagement = async (req, res, next) => {
+  try {
+    const { states } = req.body;
+
+    const updatedSettings = await StateManagement.findOneAndUpdate(
+      { user: req.user.id },
+      { states },
+      { new: true, upsert: true, runValidators: true }
+    );
+
+    res.status(200).json({ success: true, data: updatedSettings });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, msg: 'Server Error' });
+  }
+};
+
+// @desc    Update Phone Number
+// @route   PUT /api/compliance/phone-numbers/:id
+// @access  Private
+exports.updatePhoneNumber = async (req, res, next) => {
+  try {
+    const phoneNumber = await PhoneNumber.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
+
+    if (!phoneNumber) {
+      return res.status(404).json({ success: false, msg: 'Phone number not found' });
+    }
+
+    res.status(200).json({ success: true, data: phoneNumber });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, msg: 'Server Error' });
+  }
+};
+
+// @desc    Create an Emerging Risk
+// @route   POST /api/compliance/emerging-risks
+// @access  Private
+exports.createEmergingRisk = async (req, res, next) => {
+  try {
+    const riskData = { ...req.body, user: req.user.id };
+    const newRisk = await EmergingRisk.create(riskData);
+    res.status(201).json({ success: true, data: newRisk });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, msg: 'Server Error' });
+  }
 };

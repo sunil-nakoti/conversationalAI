@@ -165,7 +165,20 @@ export interface AiSmsSuggestion { id: string; source: 'generation' | 'conversat
 export interface NodeData { type: string; label: string; icon: IconName; settings?: any; }
 export interface CanvasNodeData extends NodeData { id: string; position: { x: number; y: number }; }
 export interface Edge { id: string; source: string; target: string; }
-export interface Playbook { id: string; name: string; agentId: string; nodes: CanvasNodeData[]; edges: Edge[]; }
+export interface PlaybookStep {
+    id: string;
+    name: string;
+    content: string;
+}
+
+export interface Playbook {
+    id: string;
+    name: string;
+    agentId: string;
+    nodes: CanvasNodeData[];
+    edges: Edge[];
+    steps?: PlaybookStep[];
+}
 
 // Training
 export interface TrainingExample { id: string; title: string; type: 'good' | 'bad'; hasAudio: boolean; hasTranscript: boolean; uploadedAt: string; }
@@ -341,4 +354,10 @@ export interface ConversationalAuditEntry {
     summary: string;
     flaggedTranscriptSnippet: string;
     sentimentTrend: number[]; // e.g., [0.5, 0.4, 0.2, 0.1]
+}
+
+export interface StateManagementData {
+  _id: string;
+  user: string;
+  states: { code: string; status: 'Included' | 'Excluded' }[];
 }

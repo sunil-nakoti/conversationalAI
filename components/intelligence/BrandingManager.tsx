@@ -3,6 +3,7 @@ import { Icon } from '../Icon';
 import Tooltip from '../Tooltip';
 import { BrandingProfile, BrandedCallingSettings } from '../../types';
 import BrandingProfileModal from './BrandingProfileModal';
+import { apiService } from '../../services/apiService';
 
 interface BrandingManagerProps {
     profiles: BrandingProfile[];
@@ -38,14 +39,25 @@ const BrandingManager: React.FC<BrandingManagerProps> = ({ profiles, setProfiles
         setIsModalOpen(true);
     };
 
-    const handleSave = (profileToSave: BrandingProfile) => {
+    const handleSave = async (profileToSave: BrandingProfile) => {
+        let updatedProfiles;
         if (profileToSave.id && profiles.some(p => p.id === profileToSave.id)) {
-            setProfiles(profiles.map(p => p.id === profileToSave.id ? profileToSave : p));
+            updatedProfiles = profiles.map(p => p.id === profileToSave.id ? profileToSave : p);
         } else {
-            setProfiles([...profiles, profileToSave]);
+            updatedProfiles = [...profiles, { ...profileToSave, id: `profile${Date.now()}` }];
+        }
+
+        try {
+            await apiService.updateBrandingProfiles(updatedProfiles);
+            setProfiles(updatedProfiles);
+            setIsModalOpen(false);
+            setEditingProfile(null);
+        } catch (error) {
+            console.error("Failed to save branding profiles:", error);
+            // Optionally, show an error message to the user
         }
     };
-    
+
     const handleDelete = (profileId: string) => {
         if(window.confirm("Are you sure you want to delete this branding profile?")) {
             setProfiles(profiles.filter(p => p.id !== profileId));

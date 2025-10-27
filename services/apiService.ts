@@ -1,5 +1,5 @@
 // FIX: Added LiveCall and LiveSms to the import list.
-import { User, Kpi, FunnelStage, ComplianceAlert, PtpEntry, CampaignKpiSet, CampaignInfo, LoginEvent, Portfolio, SavedPlaybook, AvailablePhoneNumber, SelectableAIAgent, BrandingProfile, AIAgentProfile, Mission, GoldenScript, NegotiationModel, JurisdictionRule, ProposedRuleUpdate, ResilienceStatus, BillingMeterEntry, CsvHeaderMapping, ReputationCheckResult, Payment, ScheduledPayment, Notification, PaymentPortalSettings, CallingCadence, BrandedCallingSettings, SmsTemplate, CallReport, Objection, LiveCall, LiveSms } from '../types';
+import { User, Kpi, FunnelStage, ComplianceAlert, PtpEntry, CampaignKpiSet, CampaignInfo, LoginEvent, Portfolio, SavedPlaybook, AvailablePhoneNumber, SelectableAIAgent, BrandingProfile, AIAgentProfile, Mission, GoldenScript, NegotiationModel, JurisdictionRule, ProposedRuleUpdate, ResilienceStatus, BillingMeterEntry, CsvHeaderMapping, ReputationCheckResult, Payment, ScheduledPayment, Notification, PaymentPortalSettings, CallingCadence, BrandedCallingSettings, SmsTemplate, CallReport, Objection, LiveCall, LiveSms, StateManagementData, EmergingRiskTrend, AiObjectionSuggestion, Playbook, CanvasNodeData, Edge } from '../types';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -76,9 +76,12 @@ const getIntelligenceData = (): Promise<{
     objections: Objection[];
     smsTemplates: SmsTemplate[];
     callReports: CallReport[];
+    playbooks: { id: string; name: string }[];
+    aiObjectionSuggestions: AiObjectionSuggestion[];
 }> => apiFetch('/intelligence');
 const updateNegotiationModels = (models: NegotiationModel[]): Promise<NegotiationModel[]> => apiFetch('/intelligence/negotiation-models', { method: 'PUT', body: JSON.stringify(models) });
 const updateObjections = (objections: Objection[]): Promise<Objection[]> => apiFetch('/intelligence/objections', { method: 'PUT', body: JSON.stringify(objections) });
+const updatePlaybook = (playbook: Playbook): Promise<Playbook> => apiFetch(`/intelligence/playbooks/${playbook.id}`, { method: 'PUT', body: JSON.stringify(playbook) });
 
 
 // Compliance Desk
@@ -122,6 +125,23 @@ const suggestMission = (agents: AIAgentProfile[], missions: Mission[]): Promise<
 const researchComplianceUpdate = (jurisdiction: JurisdictionRule): Promise<ProposedRuleUpdate | null> => apiFetch('/compliance/research-updates', { method: 'POST', body: JSON.stringify({ jurisdiction }) });
 const getChatbotResponse = (conversationHistory: any[], debtorData: any): Promise<{ text: string }> => apiFetch('/chatbot/message', { method: 'POST', body: JSON.stringify({ conversationHistory, debtorData }) });
 
+// State Management
+const getStateManagement = (): Promise<StateManagementData> => apiFetch('/compliance/state-management');
+const updateStateManagement = (states: { code: string; status: string }[]): Promise<StateManagementData> => apiFetch('/compliance/state-management', { method: 'PUT', body: JSON.stringify({ states }) });
+
+// Phone Numbers
+const updatePhoneNumber = (id: string, data: Partial<AvailablePhoneNumber>): Promise<AvailablePhoneNumber> => apiFetch(`/compliance/phone-numbers/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+const createEmergingRisk = (riskData: Omit<EmergingRiskTrend, 'id' | 'detectedDate' | 'user'>): Promise<EmergingRiskTrend> => apiFetch('/compliance/emerging-risks', { method: 'POST', body: JSON.stringify(riskData) });
+
+// Objections
+const createObjection = (objectionData: Omit<Objection, 'id'>): Promise<Objection> => apiFetch('/intelligence/objections', { method: 'POST', body: JSON.stringify(objectionData) });
+const updateObjection = (id: string, objectionData: Partial<Objection>): Promise<Objection> => apiFetch(`/intelligence/objections/${id}`, { method: 'PUT', body: JSON.stringify(objectionData) });
+const deleteObjection = (id: string): Promise<void> => apiFetch(`/intelligence/objections/${id}`, { method: 'DELETE' });
+
+const getPlaybooks = (): Promise<{id: string, name: string}[]> => apiFetch('/intelligence/playbooks');
+const getAiObjectionSuggestions = (): Promise<AiObjectionSuggestion[]> => apiFetch('/intelligence/ai-objection-suggestions');
+
 export const apiService = {
     getDashboardData,
     getPortfolios,
@@ -135,6 +155,7 @@ export const apiService = {
     getIntelligenceData,
     updateNegotiationModels,
     updateObjections,
+    updatePlaybook,
     getComplianceData,
     saveJurisdictionRules,
     updateBrandingProfiles,
@@ -151,5 +172,14 @@ export const apiService = {
     suggestMission,
     researchComplianceUpdate,
     getChatbotResponse,
-    getBrandingProfiles: () => apiFetch('/compliance/branding-profiles') // Keep for specific use cases
+    getBrandingProfiles: () => apiFetch('/compliance/branding-profiles'), // Keep for specific use cases
+    getStateManagement,
+    updateStateManagement,
+    updatePhoneNumber,
+    createEmergingRisk,
+    createObjection,
+    updateObjection,
+    deleteObjection,
+    getPlaybooks,
+    getAiObjectionSuggestions
 };

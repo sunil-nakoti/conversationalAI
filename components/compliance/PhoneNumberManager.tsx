@@ -3,6 +3,7 @@ import { AvailablePhoneNumber, PhoneNumberStatus, NumberPool, BrandingProfile, A
 import { Icon } from '../Icon';
 import Tooltip from '../Tooltip';
 import AssignPoolModal from './AssignPoolModal';
+import { apiService } from '../../services/apiService';
 
 interface PhoneNumberManagerProps {
     phonePool: AvailablePhoneNumber[];
@@ -57,21 +58,34 @@ const PhoneNumberManager: React.FC<PhoneNumberManagerProps> = (props) => {
         setSelectedPhoneIds(e.target.checked ? filteredNumbers.map(n => n.id) : []);
     };
     
-    const handleVerifyNumbers = () => {
-        setPhonePool(prev => prev.map(p => selectedPhoneIds.includes(p.id) ? { ...p, attestationStatus: 'pending' } : p));
-        setTimeout(() => {
-            setPhonePool(prev => prev.map(p => {
-                if (selectedPhoneIds.includes(p.id)) {
-                    return { ...p, attestationStatus: Math.random() > 0.2 ? 'verified' : 'failed' };
-                }
-                return p;
-            }));
-            setSelectedPhoneIds([]);
-        }, 2000);
+    const handleVerifyNumbers = async () => {
+        try {
+            await Promise.all(selectedPhoneIds.map(id => apiService.updatePhoneNumber(id, { attestationStatus: 'pending' })));
+            setPhonePool(prev => prev.map(p => selectedPhoneIds.includes(p.id) ? { ...p, attestationStatus: 'pending' } : p));
+            setTimeout(() => {
+                setPhonePool(prev => prev.map(p => {
+                    if (selectedPhoneIds.includes(p.id)) {
+                        return { ...p, attestationStatus: Math.random() > 0.2 ? 'verified' : 'failed' };
+                    }
+                    return p;
+                }));
+                setSelectedPhoneIds([]);
+            }, 2000);
+        } catch (error) {
+            console.error("Failed to verify numbers", error);
+            // Optionally show an error to the user
+        }
     };
 
-    const handleSavePoolAssignment = (poolId: string, phoneIds: string[]) => {
-        setPhonePool(prev => prev.map(p => phoneIds.includes(p.id) ? { ...p, poolId } : p));
+    const handleSavePoolAssignment = async (poolId: string, phoneIds: string[]) => {
+        const updates = phoneIds.map(id => apiService.updatePhoneNumber(id, { poolId }));
+        try {
+            await Promise.all(updates);
+            setPhonePool(prev => prev.map(p => phoneIds.includes(p.id) ? { ...p, poolId } : p));
+        } catch (error) {
+            console.error("Failed to update phone number pools", error);
+            // Optionally show an error to the user
+        }
         setSelectedPhoneIds([]);
     };
     
@@ -86,16 +100,22 @@ const PhoneNumberManager: React.FC<PhoneNumberManagerProps> = (props) => {
         setEditingValue(phone.forwardingNumber || 'not-forwarded');
     };
 
-    const handleSaveForwarding = (phoneId: string) => {
-        setPhonePool(prev => prev.map(p => {
-            if (p.id === phoneId) {
-                const isCustom = !['not-forwarded', ...brandingProfiles.map(b => b.phoneNumber)].includes(editingValue);
-                return { ...p, forwardingNumber: editingValue === 'not-forwarded' ? undefined : (isCustom ? editingValue : editingValue) };
-            }
-            return p;
-        }));
-        setEditingId(null);
-        setEditingValue('');
+    const handleSaveForwarding = async (phoneId: string) => {
+        const phone = phonePool.find(p => p.id === phoneId);
+        if (!phone) return;
+
+        const isCustom = !['not-forwarded', ...brandingProfiles.map(b => b.phoneNumber)].includes(editingValue);
+        const forwardingNumber = editingValue === 'not-forwarded' ? undefined : (isCustom ? editingValue : editingValue);
+
+        try {
+            await apiService.updatePhoneNumber(phoneId, { forwardingNumber });
+            setPhonePool(prev => prev.map(p => p.id === phoneId ? { ...p, forwardingNumber } : p));
+            setEditingId(null);
+            setEditingValue('');
+        } catch (error) {
+            console.error("Failed to save forwarding number", error);
+            // Optionally show an error to the user
+        }
     };
 
     const timeAgo = (timestamp: number) => {

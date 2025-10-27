@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 // FIX: Corrected import paths for types
 import { CanvasNodeData, NodeData, Edge, Playbook } from '../../types';
+import { apiService } from '../../services/apiService';
 import DraggableNodeSource from '../drip/DraggableNodeSource';
 import WorkflowCanvas from '../drip/WorkflowCanvas';
 import SettingsPanel from '../drip/SettingsPanel';
@@ -20,46 +21,17 @@ const nodeSources: NodeData[] = [
     { type: 'end', label: 'End Playbook', icon: 'check' },
 ];
 
-const mockPlaybooks: Playbook[] = [
-    {
-        id: 'playbook_zephyr',
-        name: 'Zephyr - Empathy First',
-        agentId: 'zephyr',
-        nodes: [
-            { id: 'start-call-1', type: 'start-call', label: 'Start Call', icon: 'call', position: { x: 50, y: 150 }, settings: { openingMessage: 'Hello, may I please speak with {debtor.fullname}? This is a call from a debt collector.' } },
-            { id: 'mini-miranda-1', type: 'mini-miranda', label: 'Deliver Disclosure', icon: 'gavel', position: { x: 250, y: 150 }, settings: {} },
-            { id: 'end-1', type: 'end', label: 'End Playbook', icon: 'check', position: { x: 450, y: 150 }, settings: {} },
-        ],
-        edges: [
-            { id: 'e1-2', source: 'start-call-1', target: 'mini-miranda-1' },
-            { id: 'e2-3', source: 'mini-miranda-1', target: 'end-1' },
-        ],
-    },
-    {
-        id: 'playbook_kore',
-        name: 'Kore - Direct Assertive',
-        agentId: 'kore',
-        nodes: [
-            { id: 'start-call-k1', type: 'start-call', label: 'Start Call', icon: 'call', position: { x: 50, y: 100 }, settings: { openingMessage: 'Hello {debtor.fullname}. This is a debt collector. I am calling regarding your account with {debtor.originalcreditor}.' } },
-            { id: 'negotiate-k1', type: 'payment-negotiation', label: 'Payment Negotiation', icon: 'dollar', position: { x: 250, y: 100 }, settings: {} },
-            { id: 'sms-k1', type: 'sms', label: 'Send SMS', icon: 'sms', settings: { message: 'Thank you for your payment arrangement.' }, position: { x: 450, y: 100 } },
-            { id: 'end-k1', type: 'end', label: 'End Playbook', icon: 'check', position: { x: 650, y: 100 }, settings: {} },
-        ],
-        edges: [
-            { id: 'ek1-2', source: 'start-call-k1', target: 'negotiate-k1' },
-            { id: 'ek2-3', source: 'negotiate-k1', target: 'sms-k1' },
-            { id: 'ek3-4', source: 'sms-k1', target: 'end-k1' },
-        ],
-    },
-];
+interface PlaybookBuilderProps {
+    playbooks: Playbook[];
+    setPlaybooks: (playbooks: Playbook[]) => void;
+}
 
-
-const PlaybookBuilder: React.FC = () => {
-    const [playbooks, setPlaybooks] = useState<Playbook[]>(mockPlaybooks);
+const PlaybookBuilder: React.FC<PlaybookBuilderProps> = ({ playbooks, setPlaybooks }) => {
     const [nodes, setNodes] = useState<CanvasNodeData[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [selectedAgentId, setSelectedAgentId] = useState('zephyr');
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         const playbook = playbooks.find(p => p.agentId === selectedAgentId);
@@ -91,25 +63,29 @@ const PlaybookBuilder: React.FC = () => {
         );
     };
 
-    const handleSavePlaybook = () => {
-        setPlaybooks(currentPlaybooks => {
-            const exists = currentPlaybooks.some(p => p.agentId === selectedAgentId);
-            if (exists) {
-                return currentPlaybooks.map(p =>
-                    p.agentId === selectedAgentId ? { ...p, nodes, edges } : p
-                );
-            } else {
-                const newPlaybook: Playbook = {
-                    id: `playbook_${selectedAgentId}`,
-                    name: `${selectedAgentId.charAt(0).toUpperCase() + selectedAgentId.slice(1)} - Custom`,
-                    agentId: selectedAgentId,
-                    nodes,
-                    edges,
-                };
-                return [...currentPlaybooks, newPlaybook];
-            }
-        });
-        alert(`Playbook for ${selectedAgentId.charAt(0).toUpperCase() + selectedAgentId.slice(1)} has been saved!`);
+    const handleSavePlaybook = async () => {
+        const currentPlaybook = playbooks.find(p => p.agentId === selectedAgentId);
+        if (!currentPlaybook) return;
+
+        const playbookToSave: Playbook = {
+            ...currentPlaybook,
+            nodes,
+            edges,
+        };
+
+        setIsSaving(true);
+        try {
+            await apiService.updatePlaybook(playbookToSave);
+            // Optimistically update the local state
+            setPlaybooks(currentPlaybooks => 
+                currentPlaybooks.map(p => p.id === playbookToSave.id ? playbookToSave : p)
+            );
+        } catch (error) {
+            console.error("Failed to save playbook:", error);
+            // Optionally, show an error message to the user
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const selectedNode = nodes.find(n => n.id === selectedNodeId) || null;
@@ -157,10 +133,11 @@ const PlaybookBuilder: React.FC = () => {
                     </div>
                      <button 
                         onClick={handleSavePlaybook}
-                        className="flex items-center justify-center gap-2 bg-brand-accent text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-500 transition-colors"
+                        disabled={isSaving}
+                        className="flex items-center justify-center gap-2 bg-brand-accent text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-500 transition-colors disabled:bg-sky-300"
                      >
-                        <Icon name="check" className="h-5 w-5" />
-                        Save Playbook
+                        {isSaving ? <Icon name="spinner" className="h-5 w-5 animate-spin" /> : <Icon name="check" className="h-5 w-5" />}
+                        {isSaving ? 'Saving...' : 'Save Playbook'}
                     </button>
                  </div>
             </div>

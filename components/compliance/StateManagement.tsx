@@ -1,76 +1,113 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Icon } from '../Icon';
 import { StateData, Region } from '../../types';
+import { apiService } from '../../services/apiService';
 
-const allStatesData: StateData[] = [
-    { code: 'AL', name: 'Alabama', region: 'South', accountCount: 4704, status: 'Included' },
-    { code: 'AK', name: 'Alaska', region: 'West', accountCount: 63, status: 'Included' },
-    { code: 'AZ', name: 'Arizona', region: 'West', accountCount: 782, status: 'Included' },
-    { code: 'AR', name: 'Arkansas', region: 'South', accountCount: 1960, status: 'Included' },
-    { code: 'CA', name: 'California', region: 'West', accountCount: 6338, status: 'Included' },
-    { code: 'CO', name: 'Colorado', region: 'West', accountCount: 266, status: 'Included' },
-    { code: 'CT', name: 'Connecticut', region: 'Northeast', accountCount: 251, status: 'Included' },
-    { code: 'DE', name: 'Delaware', region: 'South', accountCount: 88, status: 'Included' },
-    { code: 'FL', name: 'Florida', region: 'South', accountCount: 3456, status: 'Included' },
-    { code: 'GA', name: 'Georgia', region: 'South', accountCount: 2109, status: 'Included' },
-    { code: 'HI', name: 'Hawaii', region: 'West', accountCount: 121, status: 'Included' },
-    { code: 'ID', name: 'Idaho', region: 'West', accountCount: 301, status: 'Included' },
-    { code: 'IL', name: 'Illinois', region: 'Midwest', accountCount: 2890, status: 'Included' },
-    { code: 'IN', name: 'Indiana', region: 'Midwest', accountCount: 1543, status: 'Included' },
-    { code: 'IA', name: 'Iowa', region: 'Midwest', accountCount: 876, status: 'Included' },
-    { code: 'KS', name: 'Kansas', region: 'Midwest', accountCount: 765, status: 'Included' },
-    { code: 'KY', name: 'Kentucky', region: 'South', accountCount: 1234, status: 'Included' },
-    { code: 'LA', name: 'Louisiana', region: 'South', accountCount: 1100, status: 'Included' },
-    { code: 'ME', name: 'Maine', region: 'Northeast', accountCount: 210, status: 'Included' },
-    { code: 'MD', name: 'Maryland', region: 'South', accountCount: 980, status: 'Included' },
-    { code: 'MA', name: 'Massachusetts', region: 'Northeast', accountCount: 1150, status: 'Included' },
-    { code: 'MI', name: 'Michigan', region: 'Midwest', accountCount: 2200, status: 'Included' },
-    { code: 'MN', name: 'Minnesota', region: 'Midwest', accountCount: 1300, status: 'Included' },
-    { code: 'MS', name: 'Mississippi', region: 'South', accountCount: 990, status: 'Included' },
-    { code: 'MO', name: 'Missouri', region: 'Midwest', accountCount: 1450, status: 'Included' },
-    { code: 'MT', name: 'Montana', region: 'West', accountCount: 150, status: 'Included' },
-    { code: 'NE', name: 'Nebraska', region: 'Midwest', accountCount: 450, status: 'Included' },
-    { code: 'NV', name: 'Nevada', region: 'West', accountCount: 550, status: 'Included' },
-    { code: 'NH', name: 'New Hampshire', region: 'Northeast', accountCount: 220, status: 'Included' },
-    { code: 'NJ', name: 'New Jersey', region: 'Northeast', accountCount: 1800, status: 'Included' },
-    { code: 'NM', name: 'New Mexico', region: 'West', accountCount: 350, status: 'Included' },
-    { code: 'NY', name: 'New York', region: 'Northeast', accountCount: 3200, status: 'Included' },
-    { code: 'NC', name: 'North Carolina', region: 'South', accountCount: 2500, status: 'Included' },
-    { code: 'ND', name: 'North Dakota', region: 'Midwest', accountCount: 110, status: 'Included' },
-    { code: 'OH', name: 'Ohio', region: 'Midwest', accountCount: 2600, status: 'Included' },
-    { code: 'OK', name: 'Oklahoma', region: 'South', accountCount: 950, status: 'Included' },
-    { code: 'OR', name: 'Oregon', region: 'West', accountCount: 750, status: 'Included' },
-    { code: 'PA', name: 'Pennsylvania', region: 'Northeast', accountCount: 2900, status: 'Included' },
-    { code: 'RI', name: 'Rhode Island', region: 'Northeast', accountCount: 180, status: 'Included' },
-    { code: 'SC', name: 'South Carolina', region: 'South', accountCount: 1300, status: 'Included' },
-    { code: 'SD', name: 'South Dakota', region: 'Midwest', accountCount: 130, status: 'Included' },
-    { code: 'TN', name: 'Tennessee', region: 'South', accountCount: 1600, status: 'Included' },
-    { code: 'TX', name: 'Texas', region: 'South', accountCount: 5500, status: 'Included' },
-    { code: 'UT', name: 'Utah', region: 'West', accountCount: 600, status: 'Included' },
-    { code: 'VT', name: 'Vermont', region: 'Northeast', accountCount: 90, status: 'Included' },
-    { code: 'VA', name: 'Virginia', region: 'South', accountCount: 1700, status: 'Included' },
-    { code: 'WA', name: 'Washington', region: 'West', accountCount: 1400, status: 'Included' },
-    { code: 'WV', name: 'West Virginia', region: 'South', accountCount: 400, status: 'Included' },
-    { code: 'WI', name: 'Wisconsin', region: 'Midwest', accountCount: 1200, status: 'Included' },
-    { code: 'WY', name: 'Wyoming', region: 'West', accountCount: 70, status: 'Included' },
-    { code: 'DC', name: 'District of Columbia', region: 'South', accountCount: 150, status: 'Included' },
+const allStatesData: Omit<StateData, 'accountCount' | 'status'>[] = [
+    { code: 'AL', name: 'Alabama', region: 'South' },
+    { code: 'AK', name: 'Alaska', region: 'West' },
+    { code: 'AZ', name: 'Arizona', region: 'West' },
+    { code: 'AR', name: 'Arkansas', region: 'South' },
+    { code: 'CA', name: 'California', region: 'West' },
+    { code: 'CO', name: 'Colorado', region: 'West' },
+    { code: 'CT', name: 'Connecticut', region: 'Northeast' },
+    { code: 'DE', name: 'Delaware', region: 'South' },
+    { code: 'FL', name: 'Florida', region: 'South' },
+    { code: 'GA', name: 'Georgia', region: 'South' },
+    { code: 'HI', name: 'Hawaii', region: 'West' },
+    { code: 'ID', name: 'Idaho', region: 'West' },
+    { code: 'IL', name: 'Illinois', region: 'Midwest' },
+    { code: 'IN', name: 'Indiana', region: 'Midwest' },
+    { code: 'IA', name: 'Iowa', region: 'Midwest' },
+    { code: 'KS', name: 'Kansas', region: 'Midwest' },
+    { code: 'KY', name: 'Kentucky', region: 'South' },
+    { code: 'LA', name: 'Louisiana', region: 'South' },
+    { code: 'ME', name: 'Maine', region: 'Northeast' },
+    { code: 'MD', name: 'Maryland', region: 'South' },
+    { code: 'MA', name: 'Massachusetts', region: 'Northeast' },
+    { code: 'MI', name: 'Michigan', region: 'Midwest' },
+    { code: 'MN', name: 'Minnesota', region: 'Midwest' },
+    { code: 'MS', name: 'Mississippi', region: 'South' },
+    { code: 'MO', name: 'Missouri', region: 'Midwest' },
+    { code: 'MT', name: 'Montana', region: 'West' },
+    { code: 'NE', name: 'Nebraska', region: 'Midwest' },
+    { code: 'NV', name: 'Nevada', region: 'West' },
+    { code: 'NH', name: 'New Hampshire', region: 'Northeast' },
+    { code: 'NJ', name: 'New Jersey', region: 'Northeast' },
+    { code: 'NM', name: 'New Mexico', region: 'West' },
+    { code: 'NY', name: 'New York', region: 'Northeast' },
+    { code: 'NC', name: 'North Carolina', region: 'South' },
+    { code: 'ND', name: 'North Dakota', region: 'Midwest' },
+    { code: 'OH', name: 'Ohio', region: 'Midwest' },
+    { code: 'OK', name: 'Oklahoma', region: 'South' },
+    { code: 'OR', name: 'Oregon', region: 'West' },
+    { code: 'PA', name: 'Pennsylvania', region: 'Northeast' },
+    { code: 'RI', name: 'Rhode Island', region: 'Northeast' },
+    { code: 'SC', name: 'South Carolina', region: 'South' },
+    { code: 'SD', name: 'South Dakota', region: 'Midwest' },
+    { code: 'TN', name: 'Tennessee', region: 'South' },
+    { code: 'TX', name: 'Texas', region: 'South' },
+    { code: 'UT', name: 'Utah', region: 'West' },
+    { code: 'VT', name: 'Vermont', region: 'Northeast' },
+    { code: 'VA', name: 'Virginia', region: 'South' },
+    { code: 'WA', name: 'Washington', region: 'West' },
+    { code: 'WV', name: 'West Virginia', region: 'South' },
+    { code: 'WI', name: 'Wisconsin', region: 'Midwest' },
+    { code: 'WY', name: 'Wyoming', region: 'West' },
+    { code: 'DC', name: 'District of Columbia', region: 'South' },
   ];
   
 const regions: Region[] = ['Northeast', 'Midwest', 'South', 'West'];
 
 const StateManagement: React.FC = () => {
-    const [states, setStates] = useState<StateData[]>(allStatesData);
+    const [states, setStates] = useState<StateData[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRegion, setSelectedRegion] = useState<Region | 'All'>('All');
-    
-    const handleToggleStatus = (stateCode: string) => {
-        setStates(currentStates => 
-            currentStates.map(s => 
-                s.code === stateCode 
-                    ? { ...s, status: s.status === 'Included' ? 'Excluded' : 'Included' }
-                    : s
-            )
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchStateData = async () => {
+            try {
+                setIsLoading(true);
+                const settings = await apiService.getStateManagement();
+                const mergedStates = allStatesData.map(staticState => {
+                    const savedState = settings.states.find(s => s.code === staticState.code);
+                    return {
+                        ...staticState,
+                        status: savedState ? savedState.status : 'Included',
+                        accountCount: savedState ? (savedState as any).accountCount : 0,
+                    };
+                });
+                setStates(mergedStates as StateData[]);
+            } catch (err) {
+                setError('Failed to load state management settings.');
+                console.error(err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchStateData();
+    }, []);
+
+    const handleToggleStatus = async (stateCode: string) => {
+        const updatedStates = states.map(s =>
+            s.code === stateCode
+                ? { ...s, status: s.status === 'Included' ? 'Excluded' : 'Included' }
+                : s
         );
+        setStates(updatedStates);
+
+        try {
+            const statesToSave = updatedStates.map(({ code, status }) => ({ code, status }));
+            await apiService.updateStateManagement(statesToSave);
+        } catch (err) {
+            setError('Failed to save changes. Please try again.');
+            // Optionally, revert the state change
+            setStates(states);
+            console.error(err);
+        }
     };
 
     const filteredStates = useMemo(() => {

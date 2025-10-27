@@ -6,7 +6,6 @@ const ObjectionSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    id: { type: String, required: true, unique: true },
     name: String,
     category: String,
     keywords: [String],
@@ -17,6 +16,14 @@ const ObjectionSchema = new mongoose.Schema({
     avgCallDuration: Number,
     challengerPlaybookId: String,
     challengerPlaybookName: String,
+});
+
+ObjectionSchema.set('toJSON', {
+    transform: (document, returnedObject) => {
+        returnedObject.id = returnedObject._id.toString();
+        delete returnedObject._id;
+        delete returnedObject.__v;
+    }
 });
 
 module.exports = mongoose.model('Objection', ObjectionSchema);

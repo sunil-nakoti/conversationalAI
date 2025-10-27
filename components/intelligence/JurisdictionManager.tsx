@@ -6,6 +6,7 @@ import Tooltip from '../Tooltip';
 // FIX: Corrected import path for types.ts
 import { JurisdictionRule } from '../../types';
 import JurisdictionRuleModal from './JurisdictionRuleModal';
+import { apiService } from '../../services/apiService';
 
 interface JurisdictionManagerProps {
     rules: JurisdictionRule[];
@@ -16,16 +17,26 @@ const JurisdictionManager: React.FC<JurisdictionManagerProps> = ({ rules, setRul
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRule, setSelectedRule] = useState<JurisdictionRule | null>(null);
 
-    const handleSaveRule = (ruleToSave: JurisdictionRule) => {
+    const handleSaveRule = async (ruleToSave: JurisdictionRule) => {
+        let updatedRules;
         if (ruleToSave.id) {
-            setRules(rules.map(r => r.id === ruleToSave.id ? ruleToSave : r));
+            updatedRules = rules.map(r => (r.id === ruleToSave.id ? ruleToSave : r));
         } else {
-            setRules([...rules, { ...ruleToSave, id: `rule${Date.now()}` }]);
+            updatedRules = [...rules, { ...ruleToSave, id: `rule${Date.now()}` }];
         }
-        setIsModalOpen(false);
-        setSelectedRule(null);
+
+        try {
+            // Call the API to save the rules
+            await apiService.saveJurisdictionRules(updatedRules);
+            setRules(updatedRules); // Update the local state on success
+            setIsModalOpen(false);
+            setSelectedRule(null);
+        } catch (error) {
+            console.error("Failed to save jurisdiction rules:", error);
+            // Optionally, show an error message to the user
+        }
     };
-    
+
     const handleAddNew = () => {
         setSelectedRule(null);
         setIsModalOpen(true);

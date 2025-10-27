@@ -12,14 +12,6 @@ const objectionCategories = [
     "Third-Party & Scammer Defenses"
 ];
 
-const mockPlaybooks = [
-    { id: 'pb1', name: 'Hardship Payment Plan' }, { id: 'pb2', name: 'Debt Validation Script' }, { id: 'pb3', name: 'Cease & Desist Protocol' }, { id: 'pb4', name: 'Empathy & Reassurance' }, { id: 'pb5', name: 'Company Legitimacy & Verification' }, { id: 'pb6', name: 'Identity Verification & Dispute' }, { id: 'pb7', name: 'Payment Tracing & Verification' }, { id: 'pb8', name: 'Future Payment Commitment' }, { id: 'pb9', name: 'Third-Party Authorization Protocol' }, { id: 'pb10', name: 'Bankruptcy Cease Communication' }, { id: 'pb11', name: 'Small Partial Payment Acceptance' }, { id: 'pb12', name: 'Spousal/Partner Deferral' }, { id: 'pb13', name: 'Complex Financial Situation Probe' }, { id: 'pb14', name: 'Request for Mailed Documents' }, { id: 'pb15', name: 'Minor at Incurrence Validation' }, { id: 'pb16', name: 'Original Creditor Resolution Claim' }, { id: 'pb17', name: 'Failure to Provide Service/Product' }, { id: 'pb18', name: 'Prior Settlement Claim Verification' }, { id: 'pb19', name: 'Legal Representation Protocol' }, { id: 'pb20', name: 'Judgment-Proof Claim Handling' }, { id: 'pb21', name: 'FDCPA Rights Invocation' }, { id: 'pb22', name: 'Harassment Claim De-escalation' }, { id: 'pb23', name: 'Medical Emergency Pause Protocol' }, { id: 'pb24', name: 'Hostile Debtor De-escalation' }, { id: 'pb25', name: 'Emotional Distress Protocol' }, { id: 'pb26', name: 'Immediate Hang-Up Follow-up Cadence' }, { id: 'pb27', name: 'Licensing & Compliance Verification' }, { id: 'pb28', name: 'Credit Bureau Dispute Protocol' }, { id: 'pb29', name: 'Identity Theft & Fraud Claim' }, { id: 'pb30', name: 'Statute of Limitations Defense' },
-];
-
-const mockAiObjectionSuggestions: AiObjectionSuggestion[] = [
-    { id: 'sug1', title: 'Request for Written Communication', summary: 'Debtors are increasingly asking for all communication to be in writing. This may be a tactic learned from online forums.', keywords: ['in writing', 'email only', 'mail me'], detectionCount: 15, firstDetected: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString() },
-    { id: 'sug2', title: '"Pay for Delete" Inquiry', summary: 'Debtors are asking if payment will result in deletion of the trade line from their credit report. This requires a specific, compliant response.', keywords: ['pay for delete', 'remove from credit', 'delete this'], detectionCount: 8, firstDetected: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() },
-];
 
 
 interface ObjectionLibraryProps {
@@ -87,12 +79,31 @@ const ObjectionLibrary: React.FC<ObjectionLibraryProps> = ({ objections, setObje
     const [activeTab, setActiveTab] = useState<'defined' | 'suggestions'>('defined');
     const [expandedCategories, setExpandedCategories] = useState<string[]>([objectionCategories[0]]);
     const [editingObjection, setEditingObjection] = useState<Objection | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [playbooks, setPlaybooks] = useState<{id: string, name: string}[]>([]);
+    const [aiSuggestions, setAiSuggestions] = useState<AiObjectionSuggestion[]>([]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [playbooksData, suggestionsData] = await Promise.all([
+                    apiService.getPlaybooks(),
+                    apiService.getAiObjectionSuggestions(),
+                ]);
+                setPlaybooks(playbooksData);
+                setAiSuggestions(suggestionsData);
+            } catch (error) {
+                console.error("Failed to fetch data for objection library", error);
+            }
+        };
+        fetchData();
+    }, []);
 
     const defaultFormState: Omit<Objection, 'id' | 'linkedPlaybookName' | 'keywords'> & { keywords: string } = {
         name: '',
         category: objectionCategories[0],
         keywords: '',
-        linkedPlaybookId: mockPlaybooks[0].id,
+        linkedPlaybookId: playbooks[0]?.id || '',
     };
     
     const [formData, setFormData] = useState(defaultFormState);
@@ -113,12 +124,12 @@ const ObjectionLibrary: React.FC<ObjectionLibraryProps> = ({ objections, setObje
         setFormData(prev => ({ ...prev, [name]: value }));
     };
     
-    const handleCreateFromSuggestion = (suggestion: AiObjectionSuggestion) => {
+        const handleCreateFromSuggestion = (suggestion: AiObjectionSuggestion) => {
         setFormData({
             name: suggestion.title,
             keywords: suggestion.keywords.join(', '),
             category: objectionCategories[0],
-            linkedPlaybookId: mockPlaybooks[0].id,
+            linkedPlaybookId: playbooks[0]?.id || '',
         });
         setEditingObjection(null);
         setActiveTab('defined');
@@ -126,35 +137,36 @@ const ObjectionLibrary: React.FC<ObjectionLibraryProps> = ({ objections, setObje
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        const playbook = mockPlaybooks.find(p => p.id === formData.linkedPlaybookId);
-        if (!playbook) return;
+        setIsSaving(true);
+        const playbook = playbooks.find(p => p.id === formData.linkedPlaybookId);
+        if (!playbook) {
+            setIsSaving(false);
+            return;
+        }
 
         const { keywords, ...restOfFormData } = formData;
         const keywordsArray = keywords.split(',').map(k => k.trim()).filter(Boolean);
 
-        const dataToSave: Omit<Objection, 'id'> = {
+        const dataToSave = {
             ...restOfFormData,
             keywords: keywordsArray,
             linkedPlaybookName: playbook.name,
         };
-        
-        let updatedObjections: Objection[];
-        if (editingObjection) {
-            updatedObjections = objections.map(o => o.id === editingObjection.id ? { ...dataToSave, id: editingObjection.id } as Objection : o);
-        } else {
-            const newObjection: Objection = { ...dataToSave, id: `obj_${Date.now()}` } as Objection;
-            updatedObjections = [newObjection, ...objections];
-        }
-        
-        setObjections(updatedObjections);
-        try {
-            await apiService.updateObjections(updatedObjections);
-        } catch (err) {
-            alert('Failed to save objections to the server.');
-        }
 
-        setEditingObjection(null);
-        setFormData(defaultFormState);
+        try {
+            if (editingObjection) {
+                const updatedObjection = await apiService.updateObjection(editingObjection.id, dataToSave);
+                setObjections(prev => prev.map(o => o.id === editingObjection.id ? updatedObjection : o));
+            } else {
+                const newObjection = await apiService.createObjection(dataToSave);
+                setObjections(prev => [newObjection, ...prev]);
+            }
+            setEditingObjection(null);
+            setFormData(defaultFormState);
+        } catch (err) {
+            alert('Failed to save objection.');
+        }
+        setIsSaving(false);
     };
 
     const handleEdit = (objection: Objection) => {
@@ -164,16 +176,14 @@ const ObjectionLibrary: React.FC<ObjectionLibraryProps> = ({ objections, setObje
 
     const handleDelete = async (objectionId: string) => {
         if (window.confirm("Are you sure you want to delete this objection?")) {
-            const updatedObjections = objections.filter(o => o.id !== objectionId);
-            setObjections(updatedObjections);
             try {
-                await apiService.updateObjections(updatedObjections);
+                await apiService.deleteObjection(objectionId);
+                setObjections(prev => prev.filter(o => o.id !== objectionId));
+                if (editingObjection?.id === objectionId) {
+                    setEditingObjection(null);
+                }
             } catch (err) {
-                alert('Failed to delete objection on the server.');
-            }
-
-            if (editingObjection?.id === objectionId) {
-                setEditingObjection(null);
+                alert('Failed to delete objection.');
             }
         }
     };
@@ -204,7 +214,7 @@ const ObjectionLibrary: React.FC<ObjectionLibraryProps> = ({ objections, setObje
                     <Icon name="clipboard-list" className="h-5 w-5"/> Defined Objections
                 </button>
                 <button onClick={() => setActiveTab('suggestions')} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 ${activeTab === 'suggestions' ? 'border-brand-accent text-brand-accent' : 'border-transparent text-slate-500 dark:text-slate-400'}`}>
-                    <Icon name="brain-circuit" className="h-5 w-5"/> AI Suggestions ({mockAiObjectionSuggestions.length})
+                    <Icon name="brain-circuit" className="h-5 w-5"/> AI Suggestions ({aiSuggestions.length})
                 </button>
             </div>
             {activeTab === 'defined' && (
@@ -212,7 +222,7 @@ const ObjectionLibrary: React.FC<ObjectionLibraryProps> = ({ objections, setObje
                     <div className="lg:col-span-2 space-y-4">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Objection Categories</h3>
                         {objectionCategories.map(category => (
-                             <ObjectionCategory
+                            <ObjectionCategory
                                 key={category}
                                 category={category}
                                 objections={objectionsByCategory[category] || []}
@@ -223,7 +233,7 @@ const ObjectionLibrary: React.FC<ObjectionLibraryProps> = ({ objections, setObje
                             />
                         ))}
                     </div>
-                     <div className="bg-white dark:bg-brand-secondary p-6 rounded-lg shadow-md border border-slate-200 dark:border-slate-700/50 h-fit sticky top-24">
+                    <div className="bg-white dark:bg-brand-secondary p-6 rounded-lg shadow-md border border-slate-200 dark:border-slate-700/50 h-fit sticky top-24">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">{editingObjection ? 'Edit Objection' : 'Create New Objection'}</h3>
                         <form onSubmit={handleSave} className="space-y-4">
                             <div>
@@ -241,29 +251,35 @@ const ObjectionLibrary: React.FC<ObjectionLibraryProps> = ({ objections, setObje
                                 <textarea id="keywords" name="keywords" rows={3} value={formData.keywords} onChange={handleFormChange} placeholder="e.g., already paid, paid off, settled" className={inputClass} required />
                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Comma-separated phrases the AI will listen for.</p>
                             </div>
-                             <div>
+                            <div>
                                 <label htmlFor="linkedPlaybookId" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Response Playbook</label>
-                                <select id="linkedPlaybookId" name="linkedPlaybookId" value={formData.linkedPlaybookId} onChange={handleFormChange} className={inputClass}>
-                                    {mockPlaybooks.map(pb => <option key={pb.id} value={pb.id}>{pb.name}</option>)}
+                                <select id="linkedPlaybookId" name="linkedPlaybookId" value={formData.linkedPlaybookId} onChange={handleFormChange} className={inputClass} disabled={playbooks.length === 0}>
+                                    {playbooks.length > 0 ? (
+                                        playbooks.map(pb => <option key={pb.id} value={pb.id}>{pb.name}</option>)
+                                    ) : (
+                                        <option>No playbooks available</option>
+                                    )}
                                 </select>
                             </div>
                             <div className="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
                                 {editingObjection && <button type="button" onClick={handleCancelEdit} className="bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-white font-semibold py-2 px-4 rounded-lg">Cancel</button>}
-                                <button type="submit" className="bg-brand-accent text-white font-semibold py-2 px-4 rounded-lg">{editingObjection ? 'Save Changes' : 'Create Objection'}</button>
+                                <button type="submit" disabled={isSaving || playbooks.length === 0} className="bg-brand-accent text-white font-semibold py-2 px-4 rounded-lg disabled:bg-slate-400">
+                                    {isSaving ? 'Saving...' : (editingObjection ? 'Save Changes' : 'Create Objection')}
+                                </button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
-             {activeTab === 'suggestions' && (
-                 <div className="space-y-4">
+            {activeTab === 'suggestions' && (
+                <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white">AI-Suggested Objections</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400">Our AI has detected new or recurring objection patterns from your call data. Review them to improve your handling strategies.</p>
-                    {mockAiObjectionSuggestions.map(sug => (
+                    {aiSuggestions.map(sug => (
                         <SuggestionCard key={sug.id} suggestion={sug} onCreate={handleCreateFromSuggestion} />
                     ))}
                 </div>
-             )}
+            )}
         </div>
     );
 };

@@ -12,9 +12,6 @@ if (!process.env.MONGO_URI || !process.env.JWT_SECRET || !process.env.API_KEY) {
     process.exit(1);
 }
 
-// Connect to database
-connectDB();
-
 const app = express();
 
 // Body parser
@@ -23,31 +20,81 @@ app.use(express.json());
 // Enable CORS
 app.use(cors());
 
-// Mount routers
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/dashboard', require('./routes/dashboardRoutes'));
-app.use('/api/portfolios', require('./routes/portfolioRoutes'));
-app.use('/api/agents', require('./routes/agentRoutes'));
-app.use('/api/compliance', require('./routes/complianceRoutes'));
-app.use('/api/chatbot', require('./routes/chatbotRoutes'));
-app.use('/api/intelligence', require('./routes/intelligenceRoutes'));
-app.use('/api/reporting', require('./routes/reportingRoutes'));
-app.use('/api/live', require('./routes/liveRoutes'));
-app.use('/api/settings', require('./routes/settingsRoutes'));
-app.use('/api/notifications', require('./routes/notificationRoutes'));
+console.log('[Server] Starting server...');
+const startServer = async () => {
+  try {
+    console.log('[Server] Connecting to database...');
+    // Connect to database
+    await connectDB();
+    console.log('[Server] Database connected.');
 
+    // --- TEMPORARY SCRIPT TO FIX DATABASE --- 
+    // This will run once to remove the corrupted unique index on the 'id' field.
+    try {
+        const mongoose = require('mongoose');
+        const db = mongoose.connection;
+        const collection = db.collection('objections');
+        const indexExists = await collection.indexExists('id_1');
+        if (indexExists) {
+            console.log('[DB Repair] Found corrupted index `id_1`. Dropping it now...');
+            await collection.dropIndex('id_1');
+            console.log('[DB Repair] Successfully dropped corrupted index.');
+        } else {
+            console.log('[DB Repair] Corrupted index `id_1` not found. No action needed.');
+        }
+    } catch (err) {
+        console.error('[DB Repair] CRITICAL: Failed to drop corrupted index. Please intervene manually.', err);
+        process.exit(1); // Exit if we can't repair the DB
+    }
+    // --- END TEMPORARY SCRIPT ---
 
-const PORT = process.env.PORT || 5000;
+    // Route files
+    console.log('[Server] Loading routes...');
+    const auth = require('./routes/authRoutes');
+    const agents = require('./routes/agentRoutes');
+    const portfolios = require('./routes/portfolioRoutes');
+    const dashboard = require('./routes/dashboardRoutes');
+    const intelligence = require('./routes/intelligenceRoutes');
+    const compliance = require('./routes/complianceRoutes');
+    const live = require('./routes/liveRoutes');
+    const settings = require('./routes/settingsRoutes');
+    const reports = require('./routes/reportingRoutes');
+    const notifications = require('./routes/notificationRoutes');
+    const chatbot = require('./routes/chatbotRoutes');
+    const users = require('./routes/userRoutes');
 
-const server = app.listen(
-  PORT,
-  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`)
-);
+    // Mount routers
+    app.use('/api/auth', auth);
+    app.use('/api/agents', agents);
+    app.use('/api/portfolios', portfolios);
+    app.use('/api/dashboard', dashboard);
+    app.use('/api/intelligence', intelligence);
+    app.use('/api/compliance', compliance);
+    app.use('/api/live', live);
+    app.use('/api/settings', settings);
+    app.use('/api/reports', reports);
+    app.use('/api/notifications', notifications);
+    app.use('/api/chatbot', chatbot);
+    app.use('/api/users', users);
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err, promise) => {
-  console.log(`Error: ${err.message}`);
-  // Close server & exit process
-  server.close(() => process.exit(1));
-});
+    const PORT = process.env.PORT || 5000;
+
+    const server = app.listen(
+      PORT,
+      console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`)
+    );
+
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (err, promise) => {
+      console.log(`Error: ${err.message}`);
+      // Close server & exit process
+      server.close(() => process.exit(1));
+    });
+
+  } catch (error) {
+    console.error('[Server] FATAL: Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();

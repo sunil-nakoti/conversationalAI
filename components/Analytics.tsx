@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from './Icon';
-import { IconName, IntelligenceTab, GoldenScript, BrandingProfile, AIAgentProfile, NegotiationModel, Objection, SmsTemplate, CallReport } from '../../types';
-import PlaybookBuilder from './intelligence/PlaybookBuilder';
+import { IconName, IntelligenceTab, GoldenScript, BrandingProfile, AIAgentProfile, NegotiationModel, Objection, SmsTemplate, CallReport, Playbook } from '../types';
 import ObjectionLibrary from './intelligence/ObjectionLibrary';
 import CallReports from './intelligence/CallReports';
 import AiAgentStudio from './analytics/AiAgentStudio';
 import TrainingCenter from './TrainingCenter';
+import PlaybookBuilder from './intelligence/PlaybookBuilder';
 import Tooltip from './Tooltip';
 import SmsTrainingLibrary from './intelligence/SmsTrainingLibrary';
 import GoldenScriptLibrary from './intelligence/GoldenScriptLibrary';
@@ -34,6 +34,7 @@ const IntelligenceCenter: React.FC = () => {
     const [objections, setObjections] = useState<Objection[]>([]);
     const [smsTemplates, setSmsTemplates] = useState<SmsTemplate[]>([]);
     const [callReports, setCallReports] = useState<CallReport[]>([]);
+    const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
 
     useEffect(() => {
         const loadData = async () => {
@@ -52,6 +53,7 @@ const IntelligenceCenter: React.FC = () => {
                 setObjections(intelligenceData.objections);
                 setSmsTemplates(intelligenceData.smsTemplates);
                 setCallReports(intelligenceData.callReports);
+                setPlaybooks(intelligenceData.playbooks);
                 setBrandingProfiles(brandingData);
             } catch (err: any) {
                 setError(err.message || 'Failed to load intelligence data.');
@@ -77,7 +79,7 @@ const IntelligenceCenter: React.FC = () => {
                             brandingProfiles={brandingProfiles}
                         />;
             case 'playbooks':
-                return <PlaybookBuilder />;
+                return <PlaybookBuilder playbooks={playbooks} setPlaybooks={setPlaybooks} />;
             case 'objections':
                 return <ObjectionLibrary objections={objections} setObjections={setObjections} />;
             case 'negotiation':

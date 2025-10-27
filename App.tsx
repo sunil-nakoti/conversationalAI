@@ -3,7 +3,7 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import CampaignManager from './components/CampaignManager';
-import IntelligenceCenter from './components/Analytics';
+import IntelligenceCenter from "./components/Analytics";
 import AgentCommand from './components/AgentCommand';
 import ComplianceDesk from './components/ComplianceDesk';
 import Settings from './components/Settings';
