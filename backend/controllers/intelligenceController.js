@@ -6,6 +6,8 @@ const SmsTemplate = require('../models/SmsTemplate');
 const CallReport = require('../models/CallReport');
 const Playbook = require('../models/Playbook');
 const AiObjectionSuggestion = require('../models/AiObjectionSuggestion');
+const TrainingRecord = require('../models/TrainingRecord');
+const TrainingExample = require('../models/TrainingExample');
 
 // @desc    Get all intelligence data for a user
 // @route   GET /api/intelligence
@@ -229,6 +231,62 @@ exports.deleteObjection = async (req, res, next) => {
     }
 };
 
+// @desc    Get all call reports
+// @route   GET /api/intelligence/call-reports
+// @access  Private
+exports.getCallReports = async (req, res, next) => {
+    try {
+        const query = req.user.role === 'admin' ? {} : { user: req.user.id };
+        const reports = await CallReport.find(query).sort({ timestamp: -1 });
+        res.status(200).json({ success: true, data: reports });
+    } catch (err) {
+        console.error('Error getting call reports:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Update a call report (e.g., for feedback)
+// @route   PUT /api/intelligence/call-reports/:id
+// @access  Private
+exports.updateCallReport = async (req, res, next) => {
+    try {
+        let report = await CallReport.findById(req.params.id);
+
+        if (!report) {
+            return res.status(404).json({ success: false, msg: 'Report not found' });
+        }
+
+        // Ensure the user owns the report or is an admin
+        if (report.user.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(401).json({ success: false, msg: 'Not authorized' });
+        }
+
+        report = await CallReport.findByIdAndUpdate(req.params.id, req.body, {
+            new: true,
+            runValidators: true
+        });
+
+        res.status(200).json({ success: true, data: report });
+    } catch (err) {
+        console.error('Error updating call report:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Get all golden scripts
+// @route   GET /api/intelligence/golden-scripts
+// @access  Private
+exports.getGoldenScripts = async (req, res, next) => {
+    try {
+        const query = req.user.role === 'admin' ? {} : { user: req.user.id };
+        const scripts = await GoldenScript.find(query).sort({ dateArchived: -1 });
+        res.status(200).json({ success: true, data: scripts });
+    } catch (err) {
+        console.error('Error getting golden scripts:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
 // @desc    Get all playbooks
 // @route   GET /api/intelligence/playbooks
 // @access  Private
@@ -243,6 +301,207 @@ exports.getPlaybooks = async (req, res, next) => {
 };
 
 // @desc    Get all AI objection suggestions
+// @route   GET /api/intelligence/ai-objection-suggestions
+// @access  Private
+// This is a placeholder for a real AI service call.
+// In a professional setup, this function would build a detailed prompt
+// and send it to a service like Gemini or GPT.
+const generateSmsSuggestionsFromAI = async (user) => {
+    // 1. Gather context (e.g., fetch user's most successful existing templates, recent call outcomes, etc.)
+    // const successfulTemplates = await SmsTemplate.find({ user: user.id }).sort({ conversionRate: -1 }).limit(5);
+
+    // 2. Construct a detailed prompt for the AI.
+    const prompt = `
+        You are an expert debt collection strategist. Based on industry best practices and the following examples of successful SMS messages, generate 3 new, distinct SMS template suggestions.
+        
+        SUCCESSFUL EXAMPLES:
+        - "Hi {debtor.fullname}, just a reminder your payment is due tomorrow. Let us know if you need help."
+        - "We have new payment options that might work for you. Call us at {branding.phoneNumber} to discuss."
+
+        Generate 3 new suggestions. For each suggestion, provide a 'suggestedMessage', a 'reasoning' for why it will be effective, and a 'predictedConversionLift' (a number between 1 and 15).
+        The output must be a valid JSON array of objects.
+    `;
+
+    // 3. (Future) Make the actual API call to the AI service.
+    // const aiResponse = await callToGenerativeAI(prompt);
+    // const suggestions = JSON.parse(aiResponse);
+
+    // 4. For now, return a realistic, simulated AI response.
+    const simulatedAiResponse = [
+        {
+            id: `sms_sug_${Date.now()}_1`,
+            source: 'conversation_analysis',
+            suggestedMessage: 'Hi {debtor.fullname}, I understand things are tough. We have new flexible payment options that might help. Are you open to discussing them?',
+            reasoning: 'This message from a manual conversation had a 35% higher positive reply rate and led to a payment plan setup.',
+            predictedConversionLift: 12
+        },
+        {
+            id: `sms_sug_${Date.now()}_2`,
+            source: 'generative_model',
+            suggestedMessage: 'Hi {debtor.fullname}, we haven\'t heard from you regarding your account #{debtor.accountnumber}. We can help you resolve this. Please call {branding.phoneNumber} at your convenience.',
+            reasoning: 'Generated as a friendly, low-pressure re-engagement message for dormant accounts.',
+            predictedConversionLift: 5
+        },
+        {
+            id: `sms_sug_${Date.now()}_3`,
+            source: 'industry_best_practice',
+            suggestedMessage: 'Reminder: Your payment of ${amount} is due on {date}. To pay or discuss options, visit {portal.url} or call us. Reply STOP to unsubscribe.',
+            reasoning: 'A clear, concise reminder including compliance elements (opt-out) and multiple contact channels.',
+            predictedConversionLift: 8
+        }
+    ];
+
+    return simulatedAiResponse;
+};
+
+// @desc    Get AI-powered suggestions for new SMS templates
+// @route   GET /api/intelligence/ai-sms-suggestions
+// @access  Private
+exports.getAiSmsSuggestions = async (req, res, next) => {
+    try {
+        // Call the helper function to get suggestions.
+        const suggestions = await generateSmsSuggestionsFromAI(req.user);
+        res.status(200).json({ success: true, data: suggestions });
+    } catch (err) {
+        console.error('Error in getAiSmsSuggestions:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Create a new SMS template
+// @route   POST /api/intelligence/sms-templates
+// @access  Private
+exports.createSmsTemplate = async (req, res, next) => {
+    try {
+        const template = await SmsTemplate.create({ ...req.body, user: req.user.id });
+        res.status(201).json({ success: true, data: template });
+    } catch (err) {
+        console.error('Error creating SMS template:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Update an SMS template
+// @route   PUT /api/intelligence/sms-templates/:id
+// @access  Private
+exports.updateSmsTemplate = async (req, res, next) => {
+    try {
+        let template = await SmsTemplate.findById(req.params.id);
+        if (!template) {
+            return res.status(404).json({ success: false, msg: 'Template not found' });
+        }
+
+        if (template.user.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(401).json({ success: false, msg: 'Not authorized' });
+        }
+
+        template = await SmsTemplate.findByIdAndUpdate(req.params.id, req.body, {
+            new: true,
+            runValidators: true
+        });
+
+        res.status(200).json({ success: true, data: template });
+    } catch (err) {
+        console.error('Error updating SMS template:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Delete an SMS template
+// @route   DELETE /api/intelligence/sms-templates/:id
+// @access  Private
+exports.deleteSmsTemplate = async (req, res, next) => {
+    try {
+        const query = { _id: req.params.id, user: req.user.id };
+        if (req.user.role === 'admin') {
+            delete query.user;
+        }
+
+        const template = await SmsTemplate.findOneAndDelete(query);
+
+        if (!template) {
+            return res.status(404).json({ success: false, msg: 'Template not found or not authorized' });
+        }
+
+        res.status(200).json({ success: true, data: {} });
+    } catch (err) {
+        console.error('Error deleting SMS template:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Create or update a training record for a call
+// @route   POST /api/intelligence/training
+// @access  Private
+exports.createTrainingRecord = async (req, res, next) => {
+    const { callReportId, classification } = req.body;
+
+    if (!callReportId || !classification) {
+        return res.status(400).json({ success: false, msg: 'Please provide a callReportId and a classification' });
+    }
+
+    try {
+        // Use findOneAndUpdate with upsert to create or update the classification for a user and call report.
+        // This prevents creating duplicate records if a user changes their classification.
+        const trainingRecord = await TrainingRecord.findOneAndUpdate(
+            { user: req.user.id, callReport: callReportId },
+            { classification },
+            { new: true, upsert: true, runValidators: true }
+        );
+
+        res.status(201).json({ success: true, data: trainingRecord });
+    } catch (err) {
+        console.error('Error creating/updating training record:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Get all training examples
+// @route   GET /api/intelligence/training-examples
+// @access  Private
+exports.getTrainingExamples = async (req, res, next) => {
+    try {
+        const examples = await TrainingExample.find({ user: req.user.id }).sort({ uploadedAt: -1 });
+        res.status(200).json({ success: true, data: examples });
+    } catch (err) {
+        console.error('Error getting training examples:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Create a new training example
+// @route   POST /api/intelligence/training-examples
+// @access  Private
+exports.createTrainingExample = async (req, res, next) => {
+    try {
+        // In a real app, this would handle file uploads to S3/GCS and save the URLs.
+        const example = await TrainingExample.create({ ...req.body, user: req.user.id });
+        res.status(201).json({ success: true, data: example });
+    } catch (err) {
+        console.error('Error creating training example:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Delete a training example
+// @route   DELETE /api/intelligence/training-examples/:id
+// @access  Private
+exports.deleteTrainingExample = async (req, res, next) => {
+    try {
+        const example = await TrainingExample.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+
+        if (!example) {
+            return res.status(404).json({ success: false, msg: 'Example not found or not authorized' });
+        }
+
+        res.status(200).json({ success: true, data: {} });
+    } catch (err) {
+        console.error('Error deleting training example:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Get AI-powered suggestions for new objections
 // @route   GET /api/intelligence/ai-objection-suggestions
 // @access  Private
 exports.getAiObjectionSuggestions = async (req, res, next) => {

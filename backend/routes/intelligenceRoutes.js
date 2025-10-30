@@ -9,7 +9,18 @@ const {
     updateObjections, // Keep for now, might be used elsewhere
     getPlaybooks,
     getAiObjectionSuggestions,
-    updatePlaybook
+    getAiSmsSuggestions,
+    updatePlaybook,
+    createSmsTemplate,
+    updateSmsTemplate,
+    deleteSmsTemplate,
+    createTrainingRecord,
+    getTrainingExamples,
+    createTrainingExample,
+    deleteTrainingExample,
+    getCallReports,
+    updateCallReport,
+    getGoldenScripts
 } = require('../controllers/intelligenceController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -31,5 +42,35 @@ router.route('/objections/:id')
 router.route('/playbooks/:id').put(protect, updatePlaybook);
 router.route('/playbooks').get(protect, getPlaybooks);
 router.route('/ai-objection-suggestions').get(protect, getAiObjectionSuggestions);
+router.route('/ai-sms-suggestions').get(protect, getAiSmsSuggestions);
+
+// SMS Templates
+router.route('/sms-templates')
+    .post(protect, createSmsTemplate);
+
+router.route('/sms-templates/:id')
+    .put(protect, updateSmsTemplate)
+    .delete(protect, deleteSmsTemplate);
+
+// AI Training
+router.route('/training').post(protect, createTrainingRecord);
+
+// Training Examples (Manual Uploads)
+router.route('/training-examples')
+    .get(protect, getTrainingExamples)
+    .post(protect, createTrainingExample);
+
+router.route('/training-examples/:id')
+    .delete(protect, deleteTrainingExample);
+
+// Call Reports
+router.route('/call-reports')
+    .get(protect, getCallReports);
+
+router.route('/call-reports/:id')
+    .put(protect, updateCallReport);
+
+// Golden Scripts
+router.route('/golden-scripts').get(protect, getGoldenScripts);
 
 module.exports = router;

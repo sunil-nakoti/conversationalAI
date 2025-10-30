@@ -46,7 +46,27 @@ const startServer = async () => {
         console.error('[DB Repair] CRITICAL: Failed to drop corrupted index. Please intervene manually.', err);
         process.exit(1); // Exit if we can't repair the DB
     }
-    // --- END TEMPORARY SCRIPT ---
+    // --- END TEMPORATORY SCRIPT ---
+
+    // --- TEMPORARY SCRIPT 2 TO FIX DATABASE ---
+    // This will run once to remove the corrupted unique index on the 'id' field from the smstemplates collection.
+    try {
+        const mongoose = require('mongoose');
+        const db = mongoose.connection;
+        const collection = db.collection('smstemplates');
+        const indexExists = await collection.indexExists('id_1');
+        if (indexExists) {
+            console.log('[DB Repair] Found corrupted index `id_1` on smstemplates. Dropping it now...');
+            await collection.dropIndex('id_1');
+            console.log('[DB Repair] Successfully dropped corrupted index from smstemplates.');
+        } else {
+            console.log('[DB Repair] Corrupted index `id_1` on smstemplates not found. No action needed.');
+        }
+    } catch (err) {
+        console.error('[DB Repair] CRITICAL: Failed to drop corrupted index from smstemplates. Please intervene manually.', err);
+        process.exit(1); // Exit if we can't repair the DB
+    }
+    // --- END TEMPORARY SCRIPT 2 ---
 
     // Route files
     console.log('[Server] Loading routes...');

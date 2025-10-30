@@ -181,7 +181,15 @@ export interface Playbook {
 }
 
 // Training
-export interface TrainingExample { id: string; title: string; type: 'good' | 'bad'; hasAudio: boolean; hasTranscript: boolean; uploadedAt: string; }
+export interface TrainingExample {
+    id: string;
+    title: string;
+    type: 'good' | 'bad';
+    hasAudio: boolean;
+    hasTranscript: boolean;
+    uploadedAt: string;
+    audioUrl?: string; // Optional: URL to the audio file
+}
 
 // AI Oversight
 export type OversightTab = 'breaker' | 'sandbox' | 'qa';

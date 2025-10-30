@@ -6,7 +6,6 @@ const SmsTemplateSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    id: { type: String, required: true, unique: true },
     name: String,
     category: String,
     purpose: String,
@@ -19,6 +18,14 @@ const SmsTemplateSchema = new mongoose.Schema({
     optOutRate: Number,
     avgSentiment: Number,
     complianceScore: Number,
+});
+
+SmsTemplateSchema.set('toJSON', {
+    transform: (document, returnedObject) => {
+        returnedObject.id = returnedObject._id.toString();
+        delete returnedObject._id;
+        delete returnedObject.__v;
+    }
 });
 
 module.exports = mongoose.model('SmsTemplate', SmsTemplateSchema);

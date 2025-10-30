@@ -5,13 +5,13 @@ import VoiceRecorder from './VoiceRecorder';
 import { Icon } from '../Icon';
 // FIX: Corrected import path for types.ts
 import { IntelligenceTab, AIAgentProfile, AIAgentConfiguration, NegotiationModel, BrandingProfile } from '../../types';
+import { apiService } from '../../services/apiService';
 import PerformanceTuning from '../intelligence/PerformanceTuning';
 import HumanizationSettings from '../intelligence/HumanizationSettings';
 import LiveTestCall from '../intelligence/LiveTestCall';
 import AgentCreatorModal from './AgentCreatorModal';
 
 interface AiAgentStudioProps {
-    onNavigate: (tab: IntelligenceTab) => void;
     agents: AIAgentProfile[];
     setAgents: React.Dispatch<React.SetStateAction<AIAgentProfile[]>>;
     negotiationModels: NegotiationModel[];
@@ -43,18 +43,40 @@ const PrometheusStatus: React.FC<{ agent: AIAgentProfile }> = ({ agent }) => {
     );
 };
 
-
-const AiAgentStudio: React.FC<AiAgentStudioProps> = ({ onNavigate, agents, setAgents, negotiationModels, brandingProfiles }) => {
-    const [selectedAgentId, setSelectedAgentId] = useState<string>(agents[0]?.id || '');
+const AiAgentStudio: React.FC<{ onNavigate: (tab: IntelligenceTab) => void; }> = ({ onNavigate }) => {
+    const [agents, setAgents] = useState<AIAgentProfile[]>([]);
+    const [negotiationModels, setNegotiationModels] = useState<NegotiationModel[]>([]);
+    const [brandingProfiles, setBrandingProfiles] = useState<BrandingProfile[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [selectedAgentId, setSelectedAgentId] = useState<string>('');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     const selectedAgent = agents.find(a => a.id === selectedAgentId);
 
     useEffect(() => {
-        if (!agents.find(a => a.id === selectedAgentId)) {
-            setSelectedAgentId(agents[0]?.id || '');
-        }
-    }, [agents, selectedAgentId]);
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                const [agentData, intelligenceData] = await Promise.all([
+                    apiService.getAgents(),
+                    apiService.getIntelligenceData(),
+                ]);
+                setAgents(agentData);
+                setNegotiationModels(intelligenceData.negotiationModels);
+                setBrandingProfiles([]); 
+                if (agentData.length > 0) {
+                    setSelectedAgentId(agentData[0].id);
+                }
+            } catch (err) {
+                setError('Failed to load initial data.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
 
     const handleConfigChange = (field: keyof AIAgentConfiguration | 'isPrometheusEnabled', value: any) => {
         if (selectedAgentId) {
@@ -65,44 +87,55 @@ const AiAgentStudio: React.FC<AiAgentStudioProps> = ({ onNavigate, agents, setAg
             ));
         }
     };
-     const handlePrometheusToggle = (agentId: string, isEnabled: boolean) => {
+
+    const handlePrometheusToggle = (agentId: string, isEnabled: boolean) => {
         setAgents(prev => prev.map(agent =>
             agent.id === agentId ? { ...agent, isPrometheusEnabled: isEnabled } : agent
         ));
     };
 
-    const handleSaveChanges = () => {
-        alert(`Changes for agent '${selectedAgent?.name}' have been saved!`);
+    const handleSaveChanges = async () => {
+        if (!selectedAgent) return;
+        try {
+            const updatedAgent = await apiService.updateAgent(selectedAgent.id, selectedAgent);
+            setAgents(prev => prev.map(a => a.id === updatedAgent.id ? updatedAgent : a));
+            alert(`Changes for agent '${selectedAgent.name}' have been saved!`);
+        } catch (err) {
+            alert('Failed to save changes.');
+        }
     };
-    
-    const handleSaveNewAgent = (name: string, configuration: AIAgentConfiguration) => {
-        const newAgent: AIAgentProfile = {
-            id: `agent_${name.toLowerCase().replace(/\s/g, '_')}_${Date.now()}`,
-            name,
-            role: 'Collector',
-            level: 1,
-            rankTitle: 'Rookie',
-            currentXp: 0,
-            xpToNextLevel: 100,
-            totalXp: 0,
-            achievements: [],
-            ptpRate: 0,
-            complianceScore: 100,
-            rpcRate: 0,
-            optInRate: 0,
-            optOutRate: 0,
-            paymentsMade: 0,
-            logins: 0,
-            configuration,
-            isPrometheusEnabled: false,
-        };
-        const updatedAgents = [...agents, newAgent];
-        setAgents(updatedAgents);
-        setSelectedAgentId(newAgent.id);
-        setIsCreateModalOpen(false);
+
+    const handleSaveNewAgent = async (name: string, configuration: AIAgentConfiguration) => {
+        try {
+            const newAgentData: Omit<AIAgentProfile, 'id'> = {
+                name,
+                role: 'Collector',
+                level: 1,
+                rankTitle: 'Rookie',
+                currentXp: 0,
+                xpToNextLevel: 100,
+                totalXp: 0,
+                achievements: [],
+                ptpRate: 0,
+                complianceScore: 100,
+                rpcRate: 0,
+                optInRate: 0,
+                optOutRate: 0,
+                paymentsMade: 0,
+                logins: 0,
+                configuration,
+                isPrometheusEnabled: false,
+            };
+            const savedAgent = await apiService.createAgent(newAgentData);
+            setAgents(prev => [...prev, savedAgent]);
+            setSelectedAgentId(savedAgent.id);
+            setIsCreateModalOpen(false);
+        } catch (err) {
+            alert('Failed to create agent.');
+        }
     };
-    
-    const handleDeleteAgent = () => {
+
+    const handleDeleteAgent = async () => {
         if (agents.length <= 1) {
             alert("You cannot delete the last agent.");
             return;
@@ -110,15 +143,20 @@ const AiAgentStudio: React.FC<AiAgentStudioProps> = ({ onNavigate, agents, setAg
         if (!selectedAgent) return;
 
         if (window.confirm(`Are you sure you want to delete the agent "${selectedAgent.name}"? This action cannot be undone.`)) {
-            const remainingAgents = agents.filter(a => a.id !== selectedAgentId);
-            setAgents(remainingAgents);
-            setSelectedAgentId(remainingAgents[0]?.id || '');
+            try {
+                await apiService.deleteAgent(selectedAgent.id);
+                const remainingAgents = agents.filter(a => a.id !== selectedAgentId);
+                setAgents(remainingAgents);
+                setSelectedAgentId(remainingAgents[0]?.id || '');
+            } catch (err) {
+                alert('Failed to delete agent.');
+            }
         }
     };
-    
+
     return (
         <div>
-             <div>
+            <div>
                 <div className="flex items-center justify-between mb-2">
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Agent Performance & Behavior Tuning Center</h3>
                      <div className="flex items-center gap-2">

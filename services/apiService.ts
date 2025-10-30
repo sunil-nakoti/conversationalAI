@@ -1,5 +1,5 @@
 // FIX: Added LiveCall and LiveSms to the import list.
-import { User, Kpi, FunnelStage, ComplianceAlert, PtpEntry, CampaignKpiSet, CampaignInfo, LoginEvent, Portfolio, SavedPlaybook, AvailablePhoneNumber, SelectableAIAgent, BrandingProfile, AIAgentProfile, Mission, GoldenScript, NegotiationModel, JurisdictionRule, ProposedRuleUpdate, ResilienceStatus, BillingMeterEntry, CsvHeaderMapping, ReputationCheckResult, Payment, ScheduledPayment, Notification, PaymentPortalSettings, CallingCadence, BrandedCallingSettings, SmsTemplate, CallReport, Objection, LiveCall, LiveSms, StateManagementData, EmergingRiskTrend, AiObjectionSuggestion, Playbook, CanvasNodeData, Edge } from '../types';
+import { User, Kpi, FunnelStage, ComplianceAlert, PtpEntry, CampaignKpiSet, CampaignInfo, LoginEvent, Portfolio, SavedPlaybook, AvailablePhoneNumber, SelectableAIAgent, BrandingProfile, AIAgentProfile, Mission, GoldenScript, NegotiationModel, JurisdictionRule, ProposedRuleUpdate, ResilienceStatus, BillingMeterEntry, CsvHeaderMapping, ReputationCheckResult, Payment, ScheduledPayment, Notification, PaymentPortalSettings, CallingCadence, BrandedCallingSettings, SmsTemplate, CallReport, Objection, LiveCall, LiveSms, StateManagementData, EmergingRiskTrend, AiObjectionSuggestion, AiSmsSuggestion, Playbook, CanvasNodeData, Edge, TrainingExample } from '../types';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -60,7 +60,6 @@ const getLaunchConfig = () => apiFetch('/portfolios/launch-config');
 
 // AI Agents & Missions
 const getAgents = (): Promise<AIAgentProfile[]> => apiFetch('/agents');
-const updateAgent = (id: string, data: Partial<AIAgentProfile>): Promise<AIAgentProfile> => apiFetch(`/agents/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 const getMissions = (): Promise<Mission[]> => apiFetch('/agents/missions');
 const saveMission = (mission: Partial<Mission>): Promise<Mission> => {
     const method = mission.id ? 'PUT' : 'POST';
@@ -141,6 +140,32 @@ const deleteObjection = (id: string): Promise<void> => apiFetch(`/intelligence/o
 
 const getPlaybooks = (): Promise<{id: string, name: string}[]> => apiFetch('/intelligence/playbooks');
 const getAiObjectionSuggestions = (): Promise<AiObjectionSuggestion[]> => apiFetch('/intelligence/ai-objection-suggestions');
+const getAiSmsSuggestions = (): Promise<AiSmsSuggestion[]> => apiFetch('/intelligence/ai-sms-suggestions');
+
+// SMS Templates
+const createSmsTemplate = (templateData: Omit<SmsTemplate, 'id'>): Promise<SmsTemplate> => apiFetch('/intelligence/sms-templates', { method: 'POST', body: JSON.stringify(templateData) });
+const updateSmsTemplate = (id: string, templateData: Partial<SmsTemplate>): Promise<SmsTemplate> => apiFetch(`/intelligence/sms-templates/${id}`, { method: 'PUT', body: JSON.stringify(templateData) });
+const deleteSmsTemplate = (id: string): Promise<void> => apiFetch(`/intelligence/sms-templates/${id}`, { method: 'DELETE' });
+
+// AI Training
+const createTrainingRecord = (callReportId: string, classification: 'good' | 'bad'): Promise<any> => apiFetch('/intelligence/training', { method: 'POST', body: JSON.stringify({ callReportId, classification }) });
+
+// Training Examples
+const getTrainingExamples = (): Promise<TrainingExample[]> => apiFetch('/intelligence/training-examples');
+const createTrainingExample = (exampleData: Omit<TrainingExample, 'id' | 'uploadedAt'>): Promise<TrainingExample> => apiFetch('/intelligence/training-examples', { method: 'POST', body: JSON.stringify(exampleData) });
+const deleteTrainingExample = (id: string): Promise<void> => apiFetch(`/intelligence/training-examples/${id}`, { method: 'DELETE' });
+
+// Call Reports
+const getCallReports = (): Promise<CallReport[]> => apiFetch('/intelligence/call-reports');
+const updateCallReport = (id: string, reportData: Partial<CallReport>): Promise<CallReport> => apiFetch(`/intelligence/call-reports/${id}`, { method: 'PUT', body: JSON.stringify(reportData) });
+
+// Golden Scripts
+const getGoldenScripts = (): Promise<GoldenScript[]> => apiFetch('/intelligence/golden-scripts');
+
+// AI Agents
+const createAgent = (agentData: Omit<AIAgentProfile, 'id'>): Promise<AIAgentProfile> => apiFetch('/agents', { method: 'POST', body: JSON.stringify(agentData) });
+const updateAgent = (id: string, agentData: Partial<AIAgentProfile>): Promise<AIAgentProfile> => apiFetch(`/agents/${id}`, { method: 'PUT', body: JSON.stringify(agentData) });
+const deleteAgent = (id: string): Promise<void> => apiFetch(`/agents/${id}`, { method: 'DELETE' });
 
 export const apiService = {
     getDashboardData,
@@ -148,7 +173,6 @@ export const apiService = {
     updatePortfolio,
     getLaunchConfig,
     getAgents,
-    updateAgent,
     getMissions,
     saveMission,
     deleteMission,
@@ -181,5 +205,19 @@ export const apiService = {
     updateObjection,
     deleteObjection,
     getPlaybooks,
-    getAiObjectionSuggestions
+    getAiObjectionSuggestions,
+    getAiSmsSuggestions,
+    createSmsTemplate,
+    updateSmsTemplate,
+    deleteSmsTemplate,
+    createTrainingRecord,
+    getTrainingExamples,
+    createTrainingExample,
+    deleteTrainingExample,
+    getCallReports,
+    updateCallReport,
+    getGoldenScripts,
+    createAgent,
+    updateAgent,
+    deleteAgent
 };

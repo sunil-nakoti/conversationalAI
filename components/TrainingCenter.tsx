@@ -1,44 +1,47 @@
-
-
-import React, { useState } from 'react';
-// FIX: Corrected import path for types
+import React, { useState, useEffect, useRef } from 'react';
 import { TrainingExample } from '../types';
 import { Icon } from './Icon';
 import TrainingUploadModal from './TrainingUploadModal';
-// FIX: Imported Tooltip component to handle hover text for icons.
 import Tooltip from './Tooltip';
+import { apiService } from '../services/apiService';
 
-const initialTrainingExamples: TrainingExample[] = [
-    { id: 't1', title: 'Successful PTP Negotiation', type: 'good', hasAudio: true, hasTranscript: true, uploadedAt: '2024-08-02T10:00:00Z' },
-    { id: 't2', title: 'Excellent De-escalation with Hostile Debtor', type: 'good', hasAudio: true, hasTranscript: false, uploadedAt: '2024-08-01T15:30:00Z' },
-    { id: 't3', title: 'Clear Mini-Miranda Delivery', type: 'good', hasAudio: false, hasTranscript: true, uploadedAt: '2024-07-31T11:00:00Z' },
-    { id: 't6', title: 'Perfect Handling of "Cant Afford" Objection', type: 'good', hasAudio: true, hasTranscript: true, uploadedAt: '2024-07-29T12:00:00Z' },
-    { id: 't7', title: 'Effective Use of Empathy', type: 'good', hasAudio: true, hasTranscript: true, uploadedAt: '2024-07-28T16:45:00Z' },
-    { id: 't4', title: 'Missed Compliance Keyword ("Stop Calling")', type: 'bad', hasAudio: true, hasTranscript: true, uploadedAt: '2024-08-02T09:15:00Z' },
-    { id: 't5', title: 'Incorrect Tone for Hardship Situation', type: 'bad', hasAudio: true, hasTranscript: false, uploadedAt: '2024-07-30T14:00:00Z' },
-    { id: 't8', title: 'Agent Interrupted Debtor Multiple Times', type: 'bad', hasAudio: true, hasTranscript: true, uploadedAt: '2024-07-29T18:00:00Z' },
-    { id: 't9', title: 'Failed to Validate Debt on Request', type: 'bad', hasAudio: false, hasTranscript: true, uploadedAt: '2024-07-27T11:20:00Z' },
-];
-
-const TrainingExampleCard: React.FC<{ example: TrainingExample }> = ({ example }) => (
+const TrainingExampleCard: React.FC<{ 
+    example: TrainingExample; 
+    onDelete: (id: string) => void; 
+    onPlayAudio: (example: TrainingExample) => void;
+    isPlaying: boolean;
+}> = ({ example, onDelete, onPlayAudio, isPlaying }) => (
     <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg flex items-center justify-between">
         <div>
             <p className="font-semibold text-slate-900 dark:text-white">{example.title}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">Uploaded: {new Date(example.uploadedAt).toLocaleDateString()}</p>
         </div>
         <div className="flex items-center gap-2">
-            {/* FIX: Replaced unsupported 'title' prop with Tooltip component. */}
-            {example.hasAudio && <Tooltip content="Audio available"><Icon name="microphone" className="h-5 w-5 text-slate-500 dark:text-slate-300" /></Tooltip>}
-            {/* FIX: Replaced unsupported 'title' prop with Tooltip component. */}
+            {example.hasAudio && (
+                <Tooltip content={isPlaying ? 'Pause Audio' : 'Play Audio'}>
+                    <button onClick={() => onPlayAudio(example)} className="p-2 text-slate-500 dark:text-slate-400 hover:text-sky-500 dark:hover:text-sky-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                        <Icon name={isPlaying ? 'pause' : 'play'} className="h-5 w-5" />
+                    </button>
+                </Tooltip>
+            )}
             {example.hasTranscript && <Tooltip content="Transcript available"><Icon name="reports" className="h-5 w-5 text-slate-500 dark:text-slate-300" /></Tooltip>}
-            <button className="p-2 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Delete">
+            <button onClick={() => onDelete(example.id)} className="p-2 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Delete">
                 <Icon name="trash" className="h-5 w-5" />
             </button>
         </div>
     </div>
 );
 
-const TrainingColumn: React.FC<{ title: string; description: string; examples: TrainingExample[]; color: 'green' | 'red'; tooltip: string; }> = ({ title, description, examples, color, tooltip }) => (
+const TrainingColumn: React.FC<{ 
+    title: string; 
+    description: string; 
+    examples: TrainingExample[]; 
+    color: 'green' | 'red'; 
+    tooltip: string; 
+    onDelete: (id: string) => void; 
+    onPlayAudio: (example: TrainingExample) => void;
+    playingExampleId: string | null;
+}> = ({ title, description, examples, color, tooltip, onDelete, onPlayAudio, playingExampleId }) => (
     <div className={`bg-white dark:bg-brand-secondary p-6 rounded-lg shadow-md border-t-4 ${color === 'green' ? 'border-brand-success' : 'border-brand-danger'}`}>
         <div className="flex items-center gap-3 mb-2">
             <Icon name={color === 'green' ? 'check' : 'warning'} className={`h-6 w-6 ${color === 'green' ? 'text-brand-success' : 'text-brand-danger'}`} />
@@ -51,22 +54,78 @@ const TrainingColumn: React.FC<{ title: string; description: string; examples: T
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{description}</p>
         <div className="space-y-3">
-            {examples.map(ex => <TrainingExampleCard key={ex.id} example={ex} />)}
+            {examples.map(ex => <TrainingExampleCard key={ex.id} example={ex} onDelete={onDelete} onPlayAudio={onPlayAudio} isPlaying={playingExampleId === ex.id} />)}
         </div>
     </div>
 );
 
 const TrainingCenter: React.FC = () => {
-    const [trainingExamples, setTrainingExamples] = useState<TrainingExample[]>(initialTrainingExamples);
+    const [trainingExamples, setTrainingExamples] = useState<TrainingExample[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [playingExampleId, setPlayingExampleId] = useState<string | null>(null);
+    const audioRef = useRef<HTMLAudioElement>(null);
 
-    const handleSaveExample = (newExampleData: Omit<TrainingExample, 'id' | 'uploadedAt'>) => {
-        const newExample: TrainingExample = {
-            ...newExampleData,
-            id: `t${Date.now()}`,
-            uploadedAt: new Date().toISOString(),
+    useEffect(() => {
+        const fetchExamples = async () => {
+            try {
+                setLoading(true);
+                const fetchedExamples = await apiService.getTrainingExamples();
+                // Add a placeholder audio URL for demonstration
+                const examplesWithAudio = fetchedExamples.map(ex => ({ ...ex, audioUrl: ex.hasAudio ? 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' : undefined }));
+                setTrainingExamples(examplesWithAudio);
+            } catch (err) {
+                setError('Failed to load training examples.');
+            } finally {
+                setLoading(false);
+            }
         };
-        setTrainingExamples(prev => [newExample, ...prev]);
+        fetchExamples();
+    }, []);
+
+    const handlePlayAudio = (example: TrainingExample) => {
+        if (playingExampleId === example.id) {
+            audioRef.current?.pause();
+            setPlayingExampleId(null);
+        } else {
+            if (audioRef.current && example.audioUrl) {
+                audioRef.current.src = example.audioUrl;
+                audioRef.current.play();
+                setPlayingExampleId(example.id);
+            }
+        }
+    };
+
+    useEffect(() => {
+        const audio = audioRef.current;
+        const handleEnded = () => setPlayingExampleId(null);
+        audio?.addEventListener('ended', handleEnded);
+        return () => {
+            audio?.removeEventListener('ended', handleEnded);
+        }
+    }, []);
+
+    const handleDeleteExample = async (id: string) => {
+        if (window.confirm('Are you sure you want to delete this training example?')) {
+            try {
+                await apiService.deleteTrainingExample(id);
+                setTrainingExamples(prev => prev.filter(ex => ex.id !== id));
+            } catch (err) {
+                alert('Failed to delete example.');
+            }
+        }
+    };
+
+    const handleSaveExample = async (newExampleData: Omit<TrainingExample, 'id' | 'uploadedAt'>) => {
+        try {
+            const newExample = await apiService.createTrainingExample(newExampleData);
+            // Add placeholder audio URL for immediate playback
+            const exampleWithAudio = { ...newExample, audioUrl: newExample.hasAudio ? 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' : undefined };
+            setTrainingExamples(prev => [exampleWithAudio, ...prev]);
+        } catch (err) {
+            alert('Failed to save example.');
+        }
     };
 
     const goodExamples = trainingExamples.filter(e => e.type === 'good');
@@ -96,6 +155,9 @@ const TrainingCenter: React.FC = () => {
                     examples={goodExamples}
                     color="green"
                     tooltip="Examples of 'Good Calls' are used to teach the AI what to do. This includes successful negotiations, compliant conversations, and effective de-escalation."
+                    onDelete={handleDeleteExample}
+                    onPlayAudio={handlePlayAudio}
+                    playingExampleId={playingExampleId}
                 />
                 <TrainingColumn
                     title="Corrective Feedback"
@@ -103,6 +165,9 @@ const TrainingCenter: React.FC = () => {
                     examples={badExamples}
                     color="red"
                     tooltip="Examples of 'Bad Calls' are used to teach the AI what not to do. This includes compliance breaches, failed negotiations, or poor sentiment handling."
+                    onDelete={handleDeleteExample}
+                    onPlayAudio={handlePlayAudio}
+                    playingExampleId={playingExampleId}
                 />
             </div>
 
@@ -111,6 +176,7 @@ const TrainingCenter: React.FC = () => {
                 onClose={() => setIsUploadModalOpen(false)}
                 onSave={handleSaveExample}
             />
+            <audio ref={audioRef} />
         </section>
     );
 };

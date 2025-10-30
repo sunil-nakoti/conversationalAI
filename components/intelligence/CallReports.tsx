@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CallReport } from '../../types';
+import { apiService } from '../../services/apiService';
 import { Icon } from '../Icon';
 
 const TranscriptItem: React.FC<{ entry: CallReport['transcript'][0] }> = ({ entry }) => {
@@ -98,21 +99,50 @@ interface CallReportsProps {
     setReports: React.Dispatch<React.SetStateAction<CallReport[]>>;
 }
 
-const CallReports: React.FC<CallReportsProps> = ({ reports, setReports }) => {
+const CallReports: React.FC = () => {
+    const [reports, setReports] = useState<CallReport[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
 
     const handleToggleExpand = (reportId: string) => {
         setExpandedReportId(prevId => (prevId === reportId ? null : reportId));
     };
 
-    const handleSetFeedback = (reportId: string, feedback: 'good' | 'bad' | null) => {
+    useEffect(() => {
+        const fetchReports = async () => {
+            try {
+                setLoading(true);
+                const fetchedReports = await apiService.getCallReports();
+                setReports(fetchedReports);
+            } catch (err) {
+                setError('Failed to load call reports.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchReports();
+    }, []);
+
+    const handleSetFeedback = async (reportId: string, feedback: 'good' | 'bad' | null) => {
+        const originalReports = [...reports];
+        const newFeedback = reports.find(r => r.id === reportId)?.humanFeedback === feedback ? null : feedback;
+
+        // Optimistic UI update
         setReports(prevReports =>
             prevReports.map(r =>
-                r.id === reportId ? { ...r, humanFeedback: r.humanFeedback === feedback ? null : feedback } : r
+                r.id === reportId ? { ...r, humanFeedback: newFeedback } : r
             )
         );
-        // In a real app, this would be an API call:
-        // apiService.updateCallReport(reportId, { humanFeedback: feedback });
+
+        try {
+            await apiService.updateCallReport(reportId, { humanFeedback: newFeedback });
+        } catch (err) {
+            // Revert on error
+            setReports(originalReports);
+            alert('Failed to save feedback.');
+        }
     };
 
     const getScoreColor = (score: number) => {

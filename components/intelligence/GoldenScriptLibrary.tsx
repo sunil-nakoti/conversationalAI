@@ -1,12 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoldenScript } from '../../types';
+import { apiService } from '../../services/apiService';
 import { Icon } from '../Icon';
 
-interface GoldenScriptLibraryProps {
-    scripts: GoldenScript[];
-}
 
-const GoldenScriptLibrary: React.FC<GoldenScriptLibraryProps> = ({ scripts }) => {
+const GoldenScriptLibrary: React.FC = () => {
+    const [scripts, setScripts] = useState<GoldenScript[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchScripts = async () => {
+            try {
+                setLoading(true);
+                const fetchedScripts = await apiService.getGoldenScripts();
+                setScripts(fetchedScripts);
+            } catch (err) {
+                setError('Failed to load golden scripts.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchScripts();
+    }, []);
     return (
         <div className="bg-white dark:bg-brand-secondary p-6 rounded-lg shadow-md border border-slate-200 dark:border-slate-700/50">
             <div className="flex items-start gap-4 mb-4">

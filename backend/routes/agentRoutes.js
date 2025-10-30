@@ -1,10 +1,16 @@
 const express = require('express');
-const { getAgents, getMissions, suggestMission, saveMission, deleteMission } = require('../controllers/agentController');
+const { getAgents, createAgent, updateAgent, deleteAgent, getMissions, suggestMission, saveMission, deleteMission } = require('../controllers/agentController');
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-router.route('/').get(protect, getAgents);
+router.route('/')
+    .get(protect, getAgents)
+    .post(protect, createAgent);
+
+router.route('/:id')
+    .put(protect, updateAgent)
+    .delete(protect, deleteAgent);
 
 router.route('/missions')
     .get(protect, getMissions)

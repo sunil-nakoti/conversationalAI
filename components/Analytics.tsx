@@ -72,9 +72,9 @@ const IntelligenceCenter: React.FC = () => {
         switch (activeTab) {
             case 'studio':
                 return <AiAgentStudio 
+                            onNavigate={setActiveTab} 
                             agents={agents} 
                             setAgents={setAgents} 
-                            onNavigate={setActiveTab} 
                             negotiationModels={negotiationModels}
                             brandingProfiles={brandingProfiles}
                         />;

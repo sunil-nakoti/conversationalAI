@@ -18,6 +18,71 @@ exports.getAgents = async (req, res, next) => {
   }
 };
 
+// @desc    Create a new AI agent
+// @route   POST /api/agents
+// @access  Private
+exports.createAgent = async (req, res, next) => {
+    try {
+        const agentData = { ...req.body, user: req.user.id, id: `agent_${Date.now()}` };
+        const agent = await AIAgent.create(agentData);
+        res.status(201).json({ success: true, data: agent });
+    } catch (err) {
+        console.error('Error creating agent:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Update an AI agent
+// @route   PUT /api/agents/:id
+// @access  Private
+exports.updateAgent = async (req, res, next) => {
+    try {
+        let agent = await AIAgent.findById(req.params.id);
+
+        if (!agent) {
+            return res.status(404).json({ success: false, msg: 'Agent not found' });
+        }
+
+        if (agent.user.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(401).json({ success: false, msg: 'Not authorized' });
+        }
+
+        agent = await AIAgent.findByIdAndUpdate(req.params.id, req.body, {
+            new: true,
+            runValidators: true
+        });
+
+        res.status(200).json({ success: true, data: agent });
+    } catch (err) {
+        console.error('Error updating agent:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Delete an AI agent
+// @route   DELETE /api/agents/:id
+// @access  Private
+exports.deleteAgent = async (req, res, next) => {
+    try {
+        const agent = await AIAgent.findById(req.params.id);
+
+        if (!agent) {
+            return res.status(404).json({ success: false, msg: 'Agent not found' });
+        }
+
+        if (agent.user.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(401).json({ success: false, msg: 'Not authorized' });
+        }
+
+        await agent.deleteOne();
+
+        res.status(200).json({ success: true, data: {} });
+    } catch (err) {
+        console.error('Error deleting agent:', err);
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
 // @desc    Get all missions for a user
 // @route   GET /api/agents/missions
 // @access  Private
