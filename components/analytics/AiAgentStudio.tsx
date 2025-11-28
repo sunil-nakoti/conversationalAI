@@ -11,6 +11,22 @@ import HumanizationSettings from '../intelligence/HumanizationSettings';
 import LiveTestCall from '../intelligence/LiveTestCall';
 import AgentCreatorModal from './AgentCreatorModal';
 
+const Notification: React.FC<{ message: string, type: 'success' | 'error', onClose: () => void }> = ({ message, type, onClose }) => {
+    const baseClasses = 'p-4 rounded-md flex items-center justify-between';
+    const typeClasses = type === 'success' 
+        ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' 
+        : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300';
+
+    return (
+        <div className={`${baseClasses} ${typeClasses}`}>
+            <span>{message}</span>
+            <button onClick={onClose} className="ml-4">
+                <Icon name="x" className="h-5 w-5" />
+            </button>
+        </div>
+    );
+};
+
 interface AiAgentStudioProps {
     agents: AIAgentProfile[];
     setAgents: React.Dispatch<React.SetStateAction<AIAgentProfile[]>>;
@@ -51,6 +67,7 @@ const AiAgentStudio: React.FC<{ onNavigate: (tab: IntelligenceTab) => void; }> =
     const [error, setError] = useState<string | null>(null);
     const [selectedAgentId, setSelectedAgentId] = useState<string>('');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
     const selectedAgent = agents.find(a => a.id === selectedAgentId);
 
@@ -58,13 +75,14 @@ const AiAgentStudio: React.FC<{ onNavigate: (tab: IntelligenceTab) => void; }> =
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const [agentData, intelligenceData] = await Promise.all([
+                const [agentData, intelligenceData, brandingData] = await Promise.all([
                     apiService.getAgents(),
                     apiService.getIntelligenceData(),
+                    apiService.getBrandingProfiles(),
                 ]);
                 setAgents(agentData);
                 setNegotiationModels(intelligenceData.negotiationModels);
-                setBrandingProfiles([]); 
+                setBrandingProfiles(brandingData); 
                 if (agentData.length > 0) {
                     setSelectedAgentId(agentData[0].id);
                 }
@@ -80,11 +98,15 @@ const AiAgentStudio: React.FC<{ onNavigate: (tab: IntelligenceTab) => void; }> =
 
     const handleConfigChange = (field: keyof AIAgentConfiguration | 'isPrometheusEnabled', value: any) => {
         if (selectedAgentId) {
-            setAgents(prev => prev.map(agent => 
-                agent.id === selectedAgentId 
-                    ? { ...agent, configuration: { ...agent.configuration, [field as keyof AIAgentConfiguration]: value } }
-                    : agent
-            ));
+            setAgents(prev => prev.map(agent => {
+                if (agent.id === selectedAgentId) {
+                    if (field === 'isPrometheusEnabled') {
+                        return { ...agent, isPrometheusEnabled: value };
+                    }
+                    return { ...agent, configuration: { ...agent.configuration, [field as keyof AIAgentConfiguration]: value } };
+                }
+                return agent;
+            }));
         }
     };
 
@@ -99,9 +121,11 @@ const AiAgentStudio: React.FC<{ onNavigate: (tab: IntelligenceTab) => void; }> =
         try {
             const updatedAgent = await apiService.updateAgent(selectedAgent.id, selectedAgent);
             setAgents(prev => prev.map(a => a.id === updatedAgent.id ? updatedAgent : a));
-            alert(`Changes for agent '${selectedAgent.name}' have been saved!`);
-        } catch (err) {
-            alert('Failed to save changes.');
+            setNotification({ message: `Changes for agent '${selectedAgent.name}' have been saved!`, type: 'success' });
+        } catch (err: any) {
+            setNotification({ message: `Failed to save changes: ${err.message}`, type: 'error' });
+        } finally {
+            setTimeout(() => setNotification(null), 3000);
         }
     };
 
@@ -156,6 +180,15 @@ const AiAgentStudio: React.FC<{ onNavigate: (tab: IntelligenceTab) => void; }> =
 
     return (
         <div>
+            {notification && (
+                <div className="my-4">
+                    <Notification
+                        message={notification.message}
+                        type={notification.type}
+                        onClose={() => setNotification(null)}
+                    />
+                </div>
+            )}
             <div>
                 <div className="flex items-center justify-between mb-2">
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Agent Performance & Behavior Tuning Center</h3>

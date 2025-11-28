@@ -37,7 +37,8 @@ exports.createAgent = async (req, res, next) => {
 // @access  Private
 exports.updateAgent = async (req, res, next) => {
     try {
-        let agent = await AIAgent.findById(req.params.id);
+        const agentId = req.params.id;
+        let agent = await AIAgent.findOne({ id: agentId });
 
         if (!agent) {
             return res.status(404).json({ success: false, msg: 'Agent not found' });
@@ -47,7 +48,12 @@ exports.updateAgent = async (req, res, next) => {
             return res.status(401).json({ success: false, msg: 'Not authorized' });
         }
 
-        agent = await AIAgent.findByIdAndUpdate(req.params.id, req.body, {
+        // Ensure the unique 'id' field is not overwritten with null or a different value
+        const updateData = { ...req.body };
+        delete updateData.id; // Prevent changing the custom ID
+        delete updateData._id; // Prevent attempting to change the immutable _id
+
+        agent = await AIAgent.findOneAndUpdate({ id: agentId }, updateData, {
             new: true,
             runValidators: true
         });
@@ -64,7 +70,8 @@ exports.updateAgent = async (req, res, next) => {
 // @access  Private
 exports.deleteAgent = async (req, res, next) => {
     try {
-        const agent = await AIAgent.findById(req.params.id);
+        const agentId = req.params.id;
+        const agent = await AIAgent.findOne({ id: agentId });
 
         if (!agent) {
             return res.status(404).json({ success: false, msg: 'Agent not found' });

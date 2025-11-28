@@ -1,7 +1,10 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const http = require('http');
+const plivo = require('plivo');
 const connectDB = require('./config/db');
+const { setupPlivoSocket } = require('./services/streamService');
 
 // Load env vars
 dotenv.config({ path: './config/config.env' });
@@ -22,6 +25,7 @@ app.use(cors());
 
 console.log('[Server] Starting server...');
 const startServer = async () => {
+  let listeningServer;
   try {
     console.log('[Server] Connecting to database...');
     // Connect to database
@@ -97,9 +101,33 @@ const startServer = async () => {
     app.use('/api/chatbot', chatbot);
     app.use('/api/users', users);
 
+    // Plivo Webhook for Incoming/Outbound Calls
+    app.all('/api/plivo-xml', (req, res) => {
+        const response = new plivo.Response();
+        
+        // Configure Stream for "Linear PCM 8000Hz" (audio/x-l16)
+        response.addStream(
+            'wss://your-public-domain.com/streams/plivo', 
+            {
+                bidirectional: true,
+                audioTrack: "inbound",
+                streamTimeout: 86400,
+                keepCallAlive: true,
+                contentType: "audio/x-l16;rate=8000" // CRITICAL SETTING
+            }
+        );
+
+        res.set('Content-Type', 'text/xml');
+        res.send(response.toXML());
+    });
+
     const PORT = process.env.PORT || 5000;
 
-    const server = app.listen(
+    const server = http.createServer(app);
+    setupPlivoSocket(server);
+
+
+    listeningServer = server.listen(
       PORT,
       console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`)
     );
@@ -108,7 +136,11 @@ const startServer = async () => {
     process.on('unhandledRejection', (err, promise) => {
       console.log(`Error: ${err.message}`);
       // Close server & exit process
-      server.close(() => process.exit(1));
+      if (listeningServer) {
+          listeningServer.close(() => process.exit(1));
+      } else {
+          process.exit(1);
+      }
     });
 
   } catch (error) {

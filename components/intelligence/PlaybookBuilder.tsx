@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 // FIX: Corrected import paths for types
-import { CanvasNodeData, NodeData, Edge, Playbook } from '../../types';
+import { CanvasNodeData, NodeData, Edge, Playbook, AIAgentProfile, Objection, NegotiationModel } from '../../types';
 import { apiService } from '../../services/apiService';
 import DraggableNodeSource from '../drip/DraggableNodeSource';
 import WorkflowCanvas from '../drip/WorkflowCanvas';
@@ -24,14 +24,18 @@ const nodeSources: NodeData[] = [
 interface PlaybookBuilderProps {
     playbooks: Playbook[];
     setPlaybooks: (playbooks: Playbook[]) => void;
+    agents: AIAgentProfile[];
+    objections: Objection[];
+    negotiationModels: NegotiationModel[];
 }
 
-const PlaybookBuilder: React.FC<PlaybookBuilderProps> = ({ playbooks, setPlaybooks }) => {
+const PlaybookBuilder: React.FC<PlaybookBuilderProps> = ({ playbooks, setPlaybooks, agents, objections, negotiationModels }) => {
     const [nodes, setNodes] = useState<CanvasNodeData[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-    const [selectedAgentId, setSelectedAgentId] = useState('zephyr');
+    const [selectedAgentId, setSelectedAgentId] = useState(agents[0]?.id || '');
     const [isSaving, setIsSaving] = useState(false);
+    const [saveStatus, setSaveStatus] = useState('idle');
 
     useEffect(() => {
         const playbook = playbooks.find(p => p.agentId === selectedAgentId);
@@ -64,27 +68,40 @@ const PlaybookBuilder: React.FC<PlaybookBuilderProps> = ({ playbooks, setPlayboo
     };
 
     const handleSavePlaybook = async () => {
-        const currentPlaybook = playbooks.find(p => p.agentId === selectedAgentId);
-        if (!currentPlaybook) return;
-
-        const playbookToSave: Playbook = {
-            ...currentPlaybook,
-            nodes,
-            edges,
-        };
+        const existingPlaybook = playbooks.find(p => p.agentId === selectedAgentId);
 
         setIsSaving(true);
+        setSaveStatus('idle');
+
         try {
-            await apiService.updatePlaybook(playbookToSave);
-            // Optimistically update the local state
-            setPlaybooks(currentPlaybooks => 
-                currentPlaybooks.map(p => p.id === playbookToSave.id ? playbookToSave : p)
-            );
+            if (existingPlaybook) {
+                const playbookToUpdate: Playbook = {
+                    ...existingPlaybook,
+                    nodes,
+                    edges,
+                };
+                const updatedPlaybook = await apiService.updatePlaybook(playbookToUpdate);
+                setPlaybooks(currentPlaybooks => 
+                    currentPlaybooks.map(p => p.id === updatedPlaybook.id ? updatedPlaybook : p)
+                );
+            } else {
+                const agent = agents.find(a => a.id === selectedAgentId);
+                const newPlaybook: Omit<Playbook, 'id'> = {
+                    name: `${agent?.name || 'New'} Playbook`,
+                    agentId: selectedAgentId,
+                    nodes,
+                    edges,
+                };
+                const createdPlaybook = await apiService.createPlaybook(newPlaybook);
+                setPlaybooks(currentPlaybooks => [...currentPlaybooks, createdPlaybook]);
+            }
+            setSaveStatus('success');
         } catch (error) {
             console.error("Failed to save playbook:", error);
-            // Optionally, show an error message to the user
+            setSaveStatus('error');
         } finally {
             setIsSaving(false);
+            setTimeout(() => setSaveStatus('idle'), 3000);
         }
     };
 
@@ -125,20 +142,23 @@ const PlaybookBuilder: React.FC<PlaybookBuilderProps> = ({ playbooks, setPlayboo
                             onChange={e => setSelectedAgentId(e.target.value)}
                             className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white font-semibold text-lg rounded-lg focus:ring-brand-accent focus:border-brand-accent block p-2"
                         >
-                            <option value="zephyr">Zephyr</option>
-                            <option value="kore">Kore</option>
-                            <option value="puck">Puck</option>
-                            <option value="charon">Charon</option>
+                            {agents.map(agent => (
+                                <option key={agent.id} value={agent.id}>{agent.name}</option>
+                            ))}
                         </select>
                     </div>
-                     <button 
-                        onClick={handleSavePlaybook}
-                        disabled={isSaving}
-                        className="flex items-center justify-center gap-2 bg-brand-accent text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-500 transition-colors disabled:bg-sky-300"
-                     >
-                        {isSaving ? <Icon name="spinner" className="h-5 w-5 animate-spin" /> : <Icon name="check" className="h-5 w-5" />}
-                        {isSaving ? 'Saving...' : 'Save Playbook'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {saveStatus === 'success' && <span className="text-sm font-medium text-green-600">Playbook saved!</span>}
+                        {saveStatus === 'error' && <span className="text-sm font-medium text-red-600">Failed to save.</span>}
+                         <button 
+                            onClick={handleSavePlaybook}
+                            disabled={isSaving}
+                            className="flex items-center justify-center gap-2 bg-brand-accent text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-500 transition-colors disabled:bg-sky-300"
+                         >
+                            {isSaving ? <Icon name="spinner" className="h-5 w-5 animate-spin" /> : <Icon name="check" className="h-5 w-5" />}
+                            {isSaving ? 'Saving...' : 'Save Playbook'}
+                        </button>
+                    </div>
                  </div>
             </div>
 
@@ -154,6 +174,10 @@ const PlaybookBuilder: React.FC<PlaybookBuilderProps> = ({ playbooks, setPlayboo
                             setSelectedNodeId(null);
                         }
                     }}
+                    objections={objections}
+                    playbooks={playbooks}
+                    negotiationModels={negotiationModels}
+                    onClose={() => setSelectedNodeId(null)}
                 />
             </div>
         </div>

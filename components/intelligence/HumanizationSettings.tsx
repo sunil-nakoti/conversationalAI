@@ -157,7 +157,7 @@ const HumanizationSettings: React.FC<HumanizationSettingsProps> = ({ config, onC
                                     </td>
                                     <td className="px-4 py-2 text-center">
                                         <div className="flex justify-center items-center gap-2">
-                                            <Tooltip content="Test Voice"><button className="p-1 text-slate-500 dark:text-slate-400 hover:text-brand-accent"><Icon name="play" className="h-4 w-4"/></button></Tooltip>
+                                            <Tooltip content="Test Voice"><button onClick={() => humanizationService.playVoiceSample(voice)} className="p-1 text-slate-500 dark:text-slate-400 hover:text-brand-accent"><Icon name="play" className="h-4 w-4"/></button></Tooltip>
                                             <Tooltip content="Edit Voice"><button onClick={() => handleEditVoice(voice)} className="p-1 text-slate-500 dark:text-slate-400 hover:text-brand-accent"><Icon name="settings" className="h-4 w-4"/></button></Tooltip>
                                         </div>
                                     </td>

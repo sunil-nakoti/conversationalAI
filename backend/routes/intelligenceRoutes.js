@@ -11,6 +11,7 @@ const {
     getAiObjectionSuggestions,
     getAiSmsSuggestions,
     updatePlaybook,
+    createPlaybook,
     createSmsTemplate,
     updateSmsTemplate,
     deleteSmsTemplate,
@@ -20,7 +21,8 @@ const {
     deleteTrainingExample,
     getCallReports,
     updateCallReport,
-    getGoldenScripts
+    getGoldenScripts,
+    synthesizeSpeech
 } = require('../controllers/intelligenceController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -40,7 +42,7 @@ router.route('/objections/:id')
     .delete(protect, deleteObjection);
 
 router.route('/playbooks/:id').put(protect, updatePlaybook);
-router.route('/playbooks').get(protect, getPlaybooks);
+router.route('/playbooks').get(protect, getPlaybooks).post(protect, createPlaybook);
 router.route('/ai-objection-suggestions').get(protect, getAiObjectionSuggestions);
 router.route('/ai-sms-suggestions').get(protect, getAiSmsSuggestions);
 
@@ -72,5 +74,8 @@ router.route('/call-reports/:id')
 
 // Golden Scripts
 router.route('/golden-scripts').get(protect, getGoldenScripts);
+
+// Text-to-Speech
+router.route('/tts').post(protect, synthesizeSpeech);
 
 module.exports = router;

@@ -81,6 +81,7 @@ const getIntelligenceData = (): Promise<{
 const updateNegotiationModels = (models: NegotiationModel[]): Promise<NegotiationModel[]> => apiFetch('/intelligence/negotiation-models', { method: 'PUT', body: JSON.stringify(models) });
 const updateObjections = (objections: Objection[]): Promise<Objection[]> => apiFetch('/intelligence/objections', { method: 'PUT', body: JSON.stringify(objections) });
 const updatePlaybook = (playbook: Playbook): Promise<Playbook> => apiFetch(`/intelligence/playbooks/${playbook.id}`, { method: 'PUT', body: JSON.stringify(playbook) });
+const createPlaybook = (playbook: Omit<Playbook, 'id'>): Promise<Playbook> => apiFetch('/intelligence/playbooks', { method: 'POST', body: JSON.stringify(playbook) });
 
 
 // Compliance Desk
@@ -167,6 +168,9 @@ const createAgent = (agentData: Omit<AIAgentProfile, 'id'>): Promise<AIAgentProf
 const updateAgent = (id: string, agentData: Partial<AIAgentProfile>): Promise<AIAgentProfile> => apiFetch(`/agents/${id}`, { method: 'PUT', body: JSON.stringify(agentData) });
 const deleteAgent = (id: string): Promise<void> => apiFetch(`/agents/${id}`, { method: 'DELETE' });
 
+// Text-to-Speech
+const synthesizeSpeech = (data: { text: string, voiceId: string, languageCode: string }): Promise<{ audioContent: string }> => apiFetch('/intelligence/tts', { method: 'POST', body: JSON.stringify(data) });
+
 export const apiService = {
     getDashboardData,
     getPortfolios,
@@ -180,6 +184,7 @@ export const apiService = {
     updateNegotiationModels,
     updateObjections,
     updatePlaybook,
+    createPlaybook,
     getComplianceData,
     saveJurisdictionRules,
     updateBrandingProfiles,
@@ -219,5 +224,6 @@ export const apiService = {
     getGoldenScripts,
     createAgent,
     updateAgent,
-    deleteAgent
+    deleteAgent,
+    synthesizeSpeech
 };

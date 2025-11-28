@@ -1,5 +1,6 @@
 // FIX: Corrected import path for types.ts
 import { VoiceLibraryEntry, VoiceStatus } from '../types';
+import { apiService } from './apiService';
 
 // Mock database table for VoiceLibrary
 let mockVoiceLibrary: VoiceLibraryEntry[] = [
@@ -118,4 +119,30 @@ export const deleteVoiceEntry = (voiceId: string): Promise<{ success: true }> =>
             resolve({ success: true });
         }, 500);
     });
+};
+
+import { apiService } from './apiService';
+
+/**
+ * Plays a voice sample using the backend TTS service.
+ */
+export const playVoiceSample = async (voice: VoiceLibraryEntry): Promise<void> => {
+    console.log(`Requesting TTS for: ${voice.voiceName}`);
+    try {
+        const audioContent = await apiService.synthesizeSpeech({
+            text: `This is a test of the ${voice.voiceName} voice.`,
+            voiceId: voice.voiceId,
+            languageCode: voice.languageTag,
+        });
+
+        if (audioContent) {
+            const audio = new Audio(`data:audio/mp3;base64,${audioContent}`);
+            audio.play();
+        } else {
+            throw new Error('Audio content not received.');
+        }
+    } catch (error: any) {
+        console.error('Error playing voice sample:', error);
+        alert(`Failed to play voice sample: ${error.message}`);
+    }
 };

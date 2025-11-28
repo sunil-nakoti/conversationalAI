@@ -79,7 +79,7 @@ const IntelligenceCenter: React.FC = () => {
                             brandingProfiles={brandingProfiles}
                         />;
             case 'playbooks':
-                return <PlaybookBuilder playbooks={playbooks} setPlaybooks={setPlaybooks} />;
+                return <PlaybookBuilder playbooks={playbooks} setPlaybooks={setPlaybooks} agents={agents} objections={objections} negotiationModels={negotiationModels} />; 
             case 'objections':
                 return <ObjectionLibrary objections={objections} setObjections={setObjections} />;
             case 'negotiation':

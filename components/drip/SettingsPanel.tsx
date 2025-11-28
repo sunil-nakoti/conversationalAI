@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 // FIX: Corrected import path for types.ts
-import { CanvasNodeData } from '../../types';
+import { CanvasNodeData, Objection, Playbook, NegotiationModel } from '../../types';
 import { Icon } from '../Icon';
 
 interface SettingsPanelProps {
     selectedNode: CanvasNodeData | null;
     updateNodeSettings: (nodeId: string, newSettings: any) => void;
     onDelete: () => void;
+    onClose: () => void;
+    objections: Objection[];
+    playbooks: Playbook[];
+    negotiationModels: NegotiationModel[];
 }
 
 const placeholders = [
@@ -50,7 +54,7 @@ const PlaceholderList: React.FC = () => {
 };
 
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, updateNodeSettings, onDelete }) => {
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, updateNodeSettings, onDelete, onClose, objections, playbooks, negotiationModels }) => {
     if (!selectedNode) {
         return (
             <div className="bg-white dark:bg-brand-secondary p-4 rounded-lg shadow-md border border-slate-200 dark:border-slate-700/50 h-full flex flex-col items-center justify-center">
@@ -211,6 +215,22 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, updateNodeS
                         <PlaceholderList />
                     </>
                 );
+            case 'mini-miranda':
+                return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Disclosure Message (Text-to-Speech)</label>
+                            <textarea
+                                rows={4}
+                                value={selectedNode.settings?.message || ''}
+                                onChange={e => handleSettingChange('message', e.target.value)}
+                                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-white"
+                                placeholder="This is an attempt to collect a debt and any information obtained will be used for that purpose."
+                            />
+                        </div>
+                        <PlaceholderList />
+                    </>
+                );
             case 'voicemail-drop':
                 return (
                    <>
@@ -251,16 +271,85 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, updateNodeS
                         </div>
                     </>
                 );
+            case 'handle-objection':
+                return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Objection</label>
+                            <select
+                                value={selectedNode.settings?.objectionId || ''}
+                                onChange={e => handleSettingChange('objectionId', e.target.value)}
+                                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-white"
+                            >
+                                <option value="">Select an objection</option>
+                                {objections.map(o => (
+                                    <option key={o.id} value={o.id}>{o.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Counter Playbook</label>
+                            <select
+                                value={selectedNode.settings?.playbookId || ''}
+                                onChange={e => handleSettingChange('playbookId', e.target.value)}
+                                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-white"
+                            >
+                                <option value="">Select a playbook</option>
+                                {playbooks.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </>
+                );
+            case 'payment-negotiation':
+                return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Negotiation Model</label>
+                            <select
+                                value={selectedNode.settings?.negotiationModelId || ''}
+                                onChange={e => handleSettingChange('negotiationModelId', e.target.value)}
+                                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-white"
+                            >
+                                <option value="">Select a model</option>
+                                {negotiationModels.map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </>
+                );
+            case 'end':
+                return (
+                    <>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Disposition Code</label>
+                            <input
+                                type="text"
+                                value={selectedNode.settings?.dispositionCode || ''}
+                                onChange={e => handleSettingChange('dispositionCode', e.target.value)}
+                                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-white"
+                                placeholder="e.g., PTP, DNC, Deceased"
+                            />
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Set a disposition code for reporting and analytics.</p>
+                        </div>
+                    </>
+                );
             default:
-                return <p className="text-sm text-slate-500 dark:text-slate-400">This node has no configurable settings.</p>;
         }
     }
 
     return (
         <div className="bg-white dark:bg-brand-secondary p-4 rounded-lg shadow-md border border-slate-200 dark:border-slate-700/50 h-full flex flex-col">
-            <div className="flex items-center gap-3 mb-4">
-                <Icon name={selectedNode.icon} className="h-6 w-6 text-sky-600 dark:text-brand-accent" />
-                <h4 className="text-lg font-semibold text-slate-900 dark:text-white">{selectedNode.label}</h4>
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                    <Icon name={selectedNode.icon} className="h-6 w-6 text-sky-600 dark:text-brand-accent" />
+                    <h4 className="text-lg font-semibold text-slate-900 dark:text-white">{selectedNode.label}</h4>
+                </div>
+                <button onClick={onClose} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white">
+                    <Icon name="x" className="h-5 w-5" />
+                </button>
             </div>
             <div className="space-y-4 flex-1 overflow-y-auto pr-2">
                 {renderSettings()}

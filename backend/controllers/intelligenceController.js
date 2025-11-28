@@ -1,4 +1,5 @@
 console.log('[Controller] Loading intelligenceController.js...');
+const { TextToSpeechClient } = require('@google-cloud/text-to-speech');
 const GoldenScript = require('../models/GoldenScript');
 const NegotiationModel = require('../models/NegotiationModel');
 const Objection = require('../models/Objection');
@@ -175,8 +176,8 @@ exports.updateObjection = async (req, res, next) => {
     }
 };
 
-// @desc    Delete an objection
-// @route   DELETE /api/intelligence/objections/:id
+// @desc    Update a playbook
+// @route   PUT /api/intelligence/playbooks/:id
 // @access  Private
 exports.updatePlaybook = async (req, res, next) => {
     try {
@@ -200,6 +201,24 @@ exports.updatePlaybook = async (req, res, next) => {
         res.status(500).json({ success: false, msg: 'Server Error' });
     }
 };
+
+// @desc    Create a new playbook
+// @route   POST /api/intelligence/playbooks
+// @access  Private
+exports.createPlaybook = async (req, res, next) => {
+    try {
+        const playbook = await Playbook.create({ ...req.body, user: req.user.id });
+        res.status(201).json({ success: true, data: playbook });
+    } catch (err) {
+        console.error('Error creating playbook:', err);
+        if (err.name === 'ValidationError') {
+            const messages = Object.values(err.errors).map(val => val.message);
+            return res.status(400).json({ success: false, msg: messages.join(', ') });
+        }
+        res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
 
 // @desc    Delete an objection
 // @route   DELETE /api/intelligence/objections/:id
@@ -329,7 +348,8 @@ const generateSmsSuggestionsFromAI = async (user) => {
     // 4. For now, return a realistic, simulated AI response.
     const simulatedAiResponse = [
         {
-            id: `sms_sug_${Date.now()}_1`,
+            id: 
+`sms_sug_${Date.now()}_1`,
             source: 'conversation_analysis',
             suggestedMessage: 'Hi {debtor.fullname}, I understand things are tough. We have new flexible payment options that might help. Are you open to discussing them?',
             reasoning: 'This message from a manual conversation had a 35% higher positive reply rate and led to a payment plan setup.',
@@ -511,5 +531,41 @@ exports.getAiObjectionSuggestions = async (req, res, next) => {
         res.status(200).json({ success: true, data: suggestions });
     } catch (err) {
         res.status(500).json({ success: false, msg: 'Server Error' });
+    }
+};
+
+// @desc    Synthesize speech using Google TTS
+// @route   POST /api/intelligence/tts
+// @access  Private
+exports.synthesizeSpeech = async (req, res, next) => {
+    // Initialize the client outside the try block for broader scope if needed,
+    // but instantiate inside to handle potential initialization errors.
+    const client = new TextToSpeechClient();
+
+    try {
+        const { text, voiceId, languageCode } = req.body;
+        
+        if (!text || !voiceId || !languageCode) {
+            return res.status(400).json({ success: false, msg: 'Missing required parameters: text, voiceId, languageCode' });
+        }
+
+        // Construct the request payload for the SDK
+        const request = {
+            input: { text },
+            voice: { languageCode, name: voiceId },
+            audioConfig: { audioEncoding: 'MP3' },
+        };
+
+        // Call the API using the SDK client
+        const [response] = await client.synthesizeSpeech(request);
+
+        // The SDK handles authentication via environment variables (GOOGLE_APPLICATION_CREDENTIALS)
+        // and returns the audio content directly.
+        res.status(200).json({ success: true, data: response.audioContent });
+
+    } catch (err) {
+        console.error('Error in synthesizeSpeech:', err);
+        // The SDK provides more detailed error objects
+        res.status(500).json({ success: false, msg: 'Failed to synthesize speech.', error: err.message });
     }
 };

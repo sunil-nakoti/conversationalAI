@@ -89,7 +89,6 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ nodes, setNodes, edges,
             ref={canvasRef}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
-            onClick={() => setSelectedNodeId(null)}
             className="w-full h-full relative"
         >
              <svg className="absolute w-full h-full pointer-events-none text-slate-400 dark:text-slate-600">
