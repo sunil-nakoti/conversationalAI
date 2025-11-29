@@ -22,7 +22,7 @@
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.0.3",
-    "plivo-node": "^0.2.5",
+    "stripe": "^20.0.0",
     "wavefile": "^11.0.0",
     "ws": "^8.18.3"
   },
